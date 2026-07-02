@@ -36,7 +36,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*User, 
 	query := `
         SELECT 
             id,
-            nome,
+            name,
             email,
             password_hash,
             activated,
@@ -69,14 +69,14 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*User, 
 func (r *UserRepository) Insert(ctx context.Context, model *User) error {
 	query := `
 	INSERT INTO users (name, email, password_hash,roles, activated,deleted)
-	VALUES ($1, $2, $3, $4, $5, $6,false)
+	VALUES ($1, $2, $3, $4, $5,false)
 	RETURNING id, created_at, version
 	`
 	args := []any{
 		model.Nome,
 		model.Email,
 		model.Senha.Hash,
-		model.Roles,
+		pq.Array(model.Roles),
 		model.Activated,
 	}
 

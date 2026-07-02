@@ -26,5 +26,5 @@ func NewRouter(
 }
 
 func (r *UserRouter) Routes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /user/", r.handler.Save)
+	mux.HandleFunc("POST /user", r.handler.Save)
 }
