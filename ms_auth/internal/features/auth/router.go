@@ -1,9 +1,15 @@
 package auth
 
-import "net/http"
+import (
+	"github.com/go-chi/chi/v5"
+)
 
 type AuthRouter struct {
 	handler authHandler
+}
+
+type authRouter interface {
+	Routes(router chi.Router)
 }
 
 func NewRouter(
@@ -14,11 +20,9 @@ func NewRouter(
 	}
 }
 
-func (r *AuthRouter) Routes(mux *http.ServeMux) {
-	authMux := http.NewServeMux()
-
-	authMux.HandleFunc("POST /", r.handler.Login)
-	authMux.HandleFunc("POST /auth/refresh-token", r.handler.RefreshToken)
-
-	mux.Handle("/auth/", http.StripPrefix("/auth", authMux))
+func (r *AuthRouter) Routes(router chi.Router) {
+	router.Route("/auth", func(router chi.Router) {
+		router.Post("/", r.handler.Login)
+		router.Post("/refresh-token", r.handler.RefreshToken)
+	})
 }

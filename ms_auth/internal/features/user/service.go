@@ -51,6 +51,8 @@ func (s *UserService) Save(ctx context.Context, model *User) error {
 		return apiError.NewValidationError(v.Errors)
 	}
 
+	model.Roles = []Role{ROLE_CLIENT}
+
 	err := s.tx.RunInTx(ctx, func(ctx context.Context) error {
 		return s.repo.Insert(ctx, model)
 	})

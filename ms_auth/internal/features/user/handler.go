@@ -11,6 +11,14 @@ type UserHandler struct {
 	errHandler errorHandler
 }
 
+type userHandler interface {
+	// FindAuthUserData(w http.ResponseWriter, r *http.Request)
+	// FindByID(w http.ResponseWriter, r *http.Request)
+	Save(w http.ResponseWriter, r *http.Request)
+	// Update(w http.ResponseWriter, r *http.Request)
+	// Delete(w http.ResponseWriter, r *http.Request)
+}
+
 type errorHandler interface {
 	HandlerError(w http.ResponseWriter, r *http.Request, err error)
 	ServerErrorResponse(w http.ResponseWriter, r *http.Request, err error)

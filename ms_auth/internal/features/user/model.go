@@ -1,6 +1,7 @@
 package user
 
 import (
+	"database/sql/driver"
 	"errors"
 	"ms_auth/internal/core/domain/models"
 	"ms_auth/internal/core/validator"
@@ -142,4 +143,24 @@ func (u *User) GetRoles() []string {
 	}
 
 	return roles
+}
+
+func (r *Role) Scan(value interface{}) error {
+	if value == nil {
+		*r = ""
+		return nil
+	}
+	switch v := value.(type) {
+	case string:
+		*r = Role(v)
+	case []byte:
+		*r = Role(v)
+	default:
+		return errors.New("invalid type for Role")
+	}
+	return nil
+}
+
+func (r Role) Value() (driver.Value, error) {
+	return string(r), nil
 }
