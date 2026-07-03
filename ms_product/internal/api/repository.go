@@ -1,0 +1,16 @@
+package api
+
+import (
+	"database/sql"
+	"ms_product/internal/core/jsonlog"
+)
+
+type repositories struct {
+}
+
+func NewRepositories(
+	db *sql.DB,
+	logger jsonlog.Logger,
+) *repositories {
+	return &repositories{}
+}

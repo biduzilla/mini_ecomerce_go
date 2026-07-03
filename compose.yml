@@ -84,7 +84,7 @@ services:
         condition: service_healthy
     volumes:
       - ./ms_auth/migrations:/root/migrations
-      - ./ms_auth/internal/config:/root/config
+      - ./ms_auth/internal/core/config:/root/config
       - ./ms_auth/resources/keys:/root/api/resources/keys
     networks:
       - api_network
