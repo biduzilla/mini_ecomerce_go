@@ -33,7 +33,6 @@ func main() {
 	}
 
 	command := args[0]
-
 	dbString := os.Getenv("DB_DSN")
 	if dbString == "" {
 		log.Fatal("A variável de ambiente DB_DSN não está definida")

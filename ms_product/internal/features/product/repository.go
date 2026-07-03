@@ -105,7 +105,7 @@ func (r *ProductRepository) InsertAll(
 	for i, m := range models {
 		valueStrings = append(
 			valueStrings,
-			fmt.Sprintf("(:name_%d, :price:_%d, :created_by_%d)", i, i, i),
+			fmt.Sprintf("(:name_%d, :price_%d, :created_by_%d)", i, i, i),
 		)
 
 		params[fmt.Sprintf("name_%d", i)] = m.Name
