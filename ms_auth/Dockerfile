@@ -26,7 +26,7 @@ COPY --from=builder /app/migrations/*.sql ./migrations/
 RUN chmod +x /root/ms_auth /root/migrate \
     && apk --no-cache add tzdata
 
-ENV SERVER_PORT=4000 \
+ENV SERVER_PORT=4001 \
     MIGRATE_PATH=/root/migrations
 
 ENTRYPOINT ["/root/ms_auth"]

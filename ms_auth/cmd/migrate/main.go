@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	dialect  = "pgx"
-	dbString = "postgres://api_user:api_password@postgres:5432/api_db?sslmode=disable"
+	dialect = "pgx"
+	// dbString = "postgres://api_user:api_password@postgres:5432/api_db?sslmode=disable"
 )
 
 var (
@@ -34,6 +34,10 @@ func main() {
 
 	command := args[0]
 
+	dbString := os.Getenv("DB_DSN")
+	if dbString == "" {
+		log.Fatal("A variável de ambiente DB_DSN não está definida")
+	}
 	// db, err := goose.OpenDBWithDriver(dialect, c.DB.DSN)
 	db, err := goose.OpenDBWithDriver(dialect, dbString)
 	if err != nil {

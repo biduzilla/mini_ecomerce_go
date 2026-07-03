@@ -117,9 +117,10 @@ func (r *ProductRepository) InsertAll(
 		name, price, created_by
 	) VALUES ` +
 		strings.Join(valueStrings, " , ") +
-		" RETURNING ID, created_at , version"
+		` RETURNING ID, created_at , version`
 
 	parsedQuery, args := sqlformat.NamedQuery(query, params)
+	r.logger.PrintInfo(sqlformat.MinifySQL(query), nil)
 
 	tx := contexts.GetTx(ctx)
 	if tx == nil {

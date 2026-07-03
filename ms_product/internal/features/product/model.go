@@ -31,7 +31,7 @@ func (m *Product) ToDTO() *ProductDTO {
 	}
 }
 
-func (d ProductDTO) ToModel() (*Product, error) {
+func (d ProductDTO) ToModel() *Product {
 	var model Product
 
 	if d.ID != nil {
@@ -47,7 +47,7 @@ func (d ProductDTO) ToModel() (*Product, error) {
 		model.Version = *d.Version
 	}
 
-	return &model, nil
+	return &model
 }
 
 func (u *Product) Validate(v *validator.Validator) {

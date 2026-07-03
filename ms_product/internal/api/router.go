@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"expvar"
 	"ms_product/internal/core/middleware"
+	"ms_product/internal/features/product"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -30,6 +31,7 @@ type errorHandler interface {
 type Router struct {
 	errHandler errorHandler
 	m          mw
+	*product.ProductRouter
 }
 
 func NewRouter(
@@ -38,8 +40,9 @@ func NewRouter(
 	m mw,
 ) *Router {
 	return &Router{
-		m:          m,
-		errHandler: errHandler,
+		m:             m,
+		errHandler:    errHandler,
+		ProductRouter: product.NewRouter(handlers.ProductHandler, m),
 	}
 }
 
@@ -72,6 +75,8 @@ func (router *Router) RegisterRoutes(db *sql.DB) *chi.Mux {
 		r.Use(router.m.RateLimit)
 		r.Use(router.m.EnableCORS)
 		r.Use(router.m.Authenticate)
+
+		router.ProductRouter.Routes(r)
 	})
 
 	return r
