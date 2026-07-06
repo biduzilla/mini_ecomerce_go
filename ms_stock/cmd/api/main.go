@@ -1,8 +1,8 @@
 package main
 
 import (
-	"ms_auth/internal/api"
-	"ms_auth/internal/core/config"
+	"ms_stock/internal/api"
+	"ms_stock/internal/core/config"
 	"time"
 )
 
@@ -26,7 +26,7 @@ func main() {
 	// cfg.Cache.Password = c.Cache.Password
 	// cfg.Cache.Db = c.Cache.Db
 
-	cfg.Server.Port = 4001
+	cfg.Server.Port = 4003
 	cfg.Server.Timeout = 5 * time.Second
 	cfg.Env = "development"
 	cfg.DB.DSN = "postgres://api_user:api_password@postgres:5432/api_db?sslmode=disable"

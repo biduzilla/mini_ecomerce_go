@@ -80,10 +80,9 @@ func (h *ProductHandler) CreateAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	models := make([]*Product, 0, len(dtos))
+	models := make([]*Product, len(dtos))
 	for i := range dtos {
-		model := dtos[i].ToModel()
-		models = append(models, model)
+		models[i] = dtos[i].ToModel()
 	}
 
 	if err := h.service.CreateAll(r.Context(), models); err != nil {
@@ -91,9 +90,9 @@ func (h *ProductHandler) CreateAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := make([]*ProductDTO, 0, len(models))
-	for _, m := range models {
-		response = append(response, m.ToDTO())
+	response := make([]*ProductDTO, len(models))
+	for i, m := range models {
+		response[i] = m.ToDTO()
 	}
 
 	handler.Respond(w, r, http.StatusCreated, response, nil, h.errHandler)
