@@ -25,8 +25,15 @@ func GetRequestID(ctx context.Context) string {
 	return ""
 }
 
-func SetToken(ctx context.Context, token string)context.Context{
+func SetToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, tokenKey, token)
+}
 
+func GetToken(ctx context.Context) string {
+	if id, ok := ctx.Value(tokenKey).(string); ok {
+		return id
+	}
+	return ""
 }
 
 func SetUser(ctx context.Context, user domain.UserDetails) context.Context {
