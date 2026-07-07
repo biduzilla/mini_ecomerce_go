@@ -12,6 +12,7 @@ type contextKey string
 const userContextKey = contextKey("user")
 const txContextKey = contextKey("tx")
 const requestIDKey = contextKey("request_id")
+const tokenKey = contextKey("token")
 
 func SetRequestID(ctx context.Context, id string) context.Context {
 	return context.WithValue(ctx, requestIDKey, id)
@@ -22,6 +23,10 @@ func GetRequestID(ctx context.Context) string {
 		return id
 	}
 	return ""
+}
+
+func SetToken(ctx context.Context, token string)context.Context{
+
 }
 
 func SetUser(ctx context.Context, user domain.UserDetails) context.Context {
