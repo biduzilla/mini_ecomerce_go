@@ -6,25 +6,10 @@ import (
 )
 
 func main() {
-	var cfg config.Config
+	// var cfg config.Config
 
-	c := config.New()
-	cfg.Server.Port = c.Server.Port
-	cfg.Server.Timeout = c.Server.Timeout
+	cfg := config.New()
 	cfg.Env = "development"
-	cfg.DB.DSN = c.DB.DSN
-	cfg.DB.MaxOpenConns = c.DB.MaxOpenConns
-	cfg.DB.MaxIdleConns = c.DB.MaxIdleConns
-	cfg.DB.MaxIdleTime = c.DB.MaxIdleTime
-	cfg.Limiter.RPS = c.RateLimiter.RPS
-	cfg.Limiter.Burst = c.RateLimiter.Burst
-	cfg.Limiter.Enabled = c.RateLimiter.Enabled
-	cfg.Security.PrivateKeyPath = c.Security.PrivateKeyPath
-	cfg.Security.PublicKeyPath = c.Security.PublicKeyPath
-	cfg.Cache.Addr = c.Cache.Addr
-	cfg.Cache.Password = c.Cache.Password
-	cfg.Cache.Db = c.Cache.Db
-	cfg.Clients.ProductURL = c.Clients.ProductURL
 
 	// cfg.Server.Port = 4003
 	// cfg.Server.Timeout = 5 * time.Second
@@ -43,7 +28,7 @@ func main() {
 	// cfg.Cache.Db = 0
 	// cfg.Clients.ProductURL = "http://localhost:4002/v1/product"
 
-	app := api.NewApp(cfg)
+	app := api.NewApp(*cfg)
 	err := app.Server()
 	if err != nil {
 		app.Logger.PrintFatal(err, nil)
