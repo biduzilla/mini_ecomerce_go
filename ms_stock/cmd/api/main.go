@@ -25,6 +25,7 @@ func main() {
 	// cfg.Cache.Addr = c.Cache.Addr
 	// cfg.Cache.Password = c.Cache.Password
 	// cfg.Cache.Db = c.Cache.Db
+	// cfg.Clients.ProductURL = c.Clients.ProductURL
 
 	cfg.Server.Port = 4003
 	cfg.Server.Timeout = 5 * time.Second
@@ -41,6 +42,7 @@ func main() {
 	cfg.Cache.Addr = "redis:6379"
 	cfg.Cache.Password = "redis_secure_password"
 	cfg.Cache.Db = 0
+	cfg.Clients.ProductURL = "http://localhost:4002/v1/product/"
 
 	app := api.NewApp(cfg)
 	err := app.Server()

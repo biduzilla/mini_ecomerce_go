@@ -29,6 +29,35 @@ func NewRepository(
 	}
 }
 
+type repository interface {
+	FindById(
+		ctx context.Context,
+		id uuid.UUID,
+	) (*Stock, error)
+
+	Insert(
+		ctx context.Context,
+		model *Stock,
+	) error
+
+	InsertAll(
+		ctx context.Context,
+		models []*Stock,
+	) error
+
+	Update(
+		ctx context.Context,
+		model *Stock,
+	) error
+
+	DeleteById(ctx context.Context, id uuid.UUID) error
+
+	FindAllByProductIdIn(
+		ctx context.Context,
+		ids []uuid.UUID,
+	) ([]*Stock, error)
+}
+
 func (r *StockRepository) FindById(
 	ctx context.Context,
 	id uuid.UUID,
@@ -187,7 +216,7 @@ func (r *StockRepository) InsertAll(
 
 func (r *StockRepository) Update(
 	ctx context.Context,
-	model Stock,
+	model *Stock,
 ) error {
 	userAuth := contexts.GetUser(ctx)
 	query := `
@@ -231,7 +260,7 @@ func (r *StockRepository) Update(
 	return nil
 }
 
-func (r *StockRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *StockRepository) DeleteById(ctx context.Context, id uuid.UUID) error {
 	userAuth := contexts.GetUser(ctx)
 
 	query := `
@@ -266,7 +295,7 @@ func (r *StockRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *StockRepository) findAllByProductIdIn(
+func (r *StockRepository) FindAllByProductIdIn(
 	ctx context.Context,
 	ids []uuid.UUID,
 ) ([]*Stock, error) {

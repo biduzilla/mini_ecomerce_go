@@ -213,7 +213,7 @@ func (m *middleware) Authenticate(next http.Handler) http.Handler {
 			m.errHandler.InactiveAccountResponse(w, r)
 			return
 		}
-
+		r = r.WithContext(contexts.SetToken(r.Context(), token))
 		r = r.WithContext(contexts.SetUser(r.Context(), user))
 
 		next.ServeHTTP(w, r)

@@ -36,6 +36,9 @@ type Config struct {
 		Password string
 		Db       int
 	}
+	Clients struct {
+		ProductURL string
+	}
 }
 
 type Conf struct {
@@ -44,6 +47,7 @@ type Conf struct {
 	RateLimiter ConfRL
 	Security    ConfSecurity
 	Cache       ConfCache
+	Clients     ConfClients
 }
 
 type ConfServer struct {
@@ -74,6 +78,10 @@ type ConfCache struct {
 	Addr     string `env:"CACHE_ADDR,required"`
 	Password string `env:"CACHE_PASSWORD,required"`
 	Db       int    `env:"CACHE_DB,required"`
+}
+
+type ConfClients struct {
+	ProductURL string `env:"PRODUCT_SERVICE_URL,required"`
 }
 
 func New() *Conf {
