@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"ms_stock/internal/core/contexts"
+	"ms_stock/internal/core/domain/apiError"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -46,7 +47,10 @@ func (c *HTTPClient) GetByID(ctx context.Context, id uuid.UUID) (*ProductDTO, er
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrProcutNotFound
+		return nil, apiError.NewApiError(
+			fmt.Sprintf("%s", ErrProcutNotFound.Error()),
+			http.StatusNotFound,
+		)
 	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

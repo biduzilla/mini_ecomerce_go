@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"ms_stock/internal/core/config"
 	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -21,7 +22,7 @@ var (
 )
 
 func main() {
-	// c := config.New()
+	c := config.New()
 
 	flags.Usage = usage
 	flags.Parse(os.Args[1:])
@@ -33,12 +34,15 @@ func main() {
 	}
 
 	command := args[0]
+	// db_dsn := "postgres://api_user:api_password@localhost:5432/api_db?sslmode=disable"
+
+	db_dsn := c.DB.DSN
 	dbString := os.Getenv("DB_DSN")
 	if dbString == "" {
 		log.Fatal("A variável de ambiente DB_DSN não está definida")
 	}
-	// db, err := goose.OpenDBWithDriver(dialect, c.DB.DSN)
-	db, err := goose.OpenDBWithDriver(dialect, dbString)
+	db, err := goose.OpenDBWithDriver(dialect, db_dsn)
+	// db, err := goose.OpenDBWithDriver(dialect, dbString)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"ms_stock/internal/core/middleware"
+	"ms_stock/internal/features/stock"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -29,8 +30,9 @@ type errorHandler interface {
 }
 
 type Router struct {
-	errHandler errorHandler
-	m          mw
+	errHandler  errorHandler
+	m           mw
+	stockRouter *stock.StockRouter
 }
 
 func NewRouter(
@@ -39,8 +41,9 @@ func NewRouter(
 	m mw,
 ) *Router {
 	return &Router{
-		m:          m,
-		errHandler: errHandler,
+		m:           m,
+		errHandler:  errHandler,
+		stockRouter: stock.NewRouter(handlers.stockHandler, m),
 	}
 }
 
@@ -73,6 +76,8 @@ func (router *Router) RegisterRoutes(db *sql.DB) *chi.Mux {
 		r.Use(router.m.RateLimit)
 		r.Use(router.m.EnableCORS)
 		r.Use(router.m.Authenticate)
+
+		router.stockRouter.Routes(r)
 
 	})
 

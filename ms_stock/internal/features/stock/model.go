@@ -78,7 +78,7 @@ func (u *Stock) Validate(v *validator.Validator) {
 }
 
 func (r *AvailabilityCheckRequest) Validate(v *validator.Validator) {
-	v.Check(r.Items != nil && len(r.Items) > 0, "items", "must contain at least one item")
+	v.Check(len(r.Items) > 0, "items", "must contain at least one item")
 
 	for _, item := range r.Items {
 		item.Validate(v)

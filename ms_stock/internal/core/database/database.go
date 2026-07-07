@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"time"
 
+	_ "github.com/lib/pq"
+
 	"ms_stock/internal/core/config"
 )
 

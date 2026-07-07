@@ -67,47 +67,71 @@ services:
   #   networks:
   #     - api_network
 
-  # ms-auth:
-  #   build:
-  #     context: ./ms_auth
-  #     dockerfile: Dockerfile
-  #   container_name: ms_auth_api
-  #   env_file: ./ms_auth/.env
-  #   environment:
-  #     DB_DSN: ${DB_DSN}
-  #   ports:
-  #     - "${AUTH_SERVER_PORT}:${AUTH_SERVER_PORT}"
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./ms_auth/migrations:/root/migrations
-  #     - ./ms_auth/internal/core/config:/root/config
-  #   networks:
-  #     - api_network
+  ms-auth:
+    build:
+      context: ./ms_auth
+      dockerfile: Dockerfile
+    container_name: ms_auth_api
+    env_file: ./ms_auth/.env
+    environment:
+      DB_DSN: ${DB_DSN}
+    ports:
+      - "${AUTH_SERVER_PORT}:${AUTH_SERVER_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./ms_auth/migrations:/root/migrations
+      - ./ms_auth/internal/core/config:/root/config
+      - ./ms_auth/resources/keys:/root/resources/keys
+    networks:
+      - api_network
 
-  # ms-product:
-  #   build:
-  #     context: ./ms_product
-  #     dockerfile: Dockerfile
-  #   container_name: ms_product_api
-  #   env_file: ./ms_product/.env
-  #   environment:
-  #     DB_DSN: ${DB_DSN}
-  #   ports:
-  #     - "${PRODUCT_SERVER_PORT}:${PRODUCT_SERVER_PORT}"
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./ms_product/migrations:/root/migrations
-  #     - ./ms_product/internal/core/config:/root/config
-  #   networks:
-  #     - api_network
+  ms-product:
+    build:
+      context: ./ms_product
+      dockerfile: Dockerfile
+    container_name: ms_product_api
+    env_file: ./ms_product/.env
+    environment:
+      DB_DSN: ${DB_DSN}
+    ports:
+      - "${PRODUCT_SERVER_PORT}:${PRODUCT_SERVER_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./ms_product/migrations:/root/migrations
+      - ./ms_product/internal/core/config:/root/config
+      - ./ms_product/resources/keys:/root/resources/keys
+    networks:
+      - api_network
+
+  ms-stock:
+    build:
+      context: ./ms_stock
+      dockerfile: Dockerfile
+    container_name: ms_stock_api
+    env_file: ./ms_stock/.env
+    environment:
+      DB_DSN: ${DB_DSN}
+    ports:
+      - "${STOCK_SERVER_PORT}:${STOCK_SERVER_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./ms_stock/migrations:/root/migrations
+      - ./ms_stock/internal/core/config:/root/config
+      - ./ms_stock/resources/keys:/root/resources/keys
+    networks:
+      - api_network
 
 volumes:
   postgres_mini_ecomerce_data:

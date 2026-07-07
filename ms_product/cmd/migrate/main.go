@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"ms_product/internal/core/config"
 	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -21,7 +22,7 @@ var (
 )
 
 func main() {
-	// c := config.New()
+	c := config.New()
 
 	flags.Usage = usage
 	flags.Parse(os.Args[1:])
@@ -34,8 +35,8 @@ func main() {
 
 	command := args[0]
 
-	// db, err := goose.OpenDBWithDriver(dialect, c.DB.DSN)
-	db, err := goose.OpenDBWithDriver(dialect, dbString)
+	db, err := goose.OpenDBWithDriver(dialect, c.DB.DSN)
+	// db, err := goose.OpenDBWithDriver(dialect, dbString)
 	if err != nil {
 		log.Fatal(err)
 	}

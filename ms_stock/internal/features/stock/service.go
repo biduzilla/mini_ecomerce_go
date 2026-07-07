@@ -26,6 +26,58 @@ type StockService struct {
 	productClient product.Client
 }
 
+type service interface {
+	FindByID(
+		ctx context.Context,
+		id uuid.UUID,
+	) (*Stock, error)
+
+	Insert(
+		ctx context.Context,
+		model *Stock,
+	) error
+
+	InsertAll(
+		ctx context.Context,
+		models []*Stock,
+	) error
+
+	Update(
+		ctx context.Context,
+		model *Stock,
+	) error
+
+	CreateStock(
+		ctx context.Context,
+		model *Stock,
+	) error
+
+	CreateAllStock(
+		ctx context.Context,
+		models []*Stock,
+	) error
+
+	DeleteById(
+		ctx context.Context,
+		id uuid.UUID,
+	) error
+
+	FindAllByProductIn(
+		ctx context.Context,
+		ids []uuid.UUID,
+	) ([]*Stock, error)
+
+	CheckAvailability(
+		ctx context.Context,
+		request AvailabilityCheckRequest,
+	) (*AvailabilityCheckResponse, error)
+
+	DeductStock(
+		ctx context.Context,
+		req AvailabilityCheckRequest,
+	) error
+}
+
 func NewService(
 	repo repository,
 	tx transaction.Manager,
@@ -62,7 +114,31 @@ func (s *StockService) Insert(
 	}
 
 	err := s.tx.RunInTx(ctx, func(ctx context.Context) error {
-		return s.Insert(ctx, model)
+		return s.repo.Insert(ctx, model)
+	})
+
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		_ = s.cache.DeleteByPrefix(ctx, s.keyBuilder.GetPrefix())
+	}()
+
+	return nil
+}
+
+func (s *StockService) Update(
+	ctx context.Context,
+	model *Stock,
+) error {
+	v := validator.New()
+	if model.Validate(v); !v.Valid() {
+		return apiError.NewValidationError(v.Errors)
+	}
+
+	err := s.tx.RunInTx(ctx, func(ctx context.Context) error {
+		return s.repo.Update(ctx, model)
 	})
 
 	if err != nil {
@@ -88,7 +164,7 @@ func (s *StockService) InsertAll(
 	}
 
 	err := s.tx.RunInTx(ctx, func(ctx context.Context) error {
-		return s.InsertAll(ctx, models)
+		return s.repo.InsertAll(ctx, models)
 	})
 
 	if err != nil {
@@ -102,7 +178,7 @@ func (s *StockService) InsertAll(
 	return nil
 }
 
-func (s *StockService) CreateAStock(
+func (s *StockService) CreateStock(
 	ctx context.Context,
 	model *Stock,
 ) error {
@@ -133,7 +209,7 @@ func (s *StockService) DeleteById(
 	id uuid.UUID,
 ) error {
 	err := s.tx.RunInTx(ctx, func(ctx context.Context) error {
-		return s.DeleteById(ctx, id)
+		return s.repo.DeleteById(ctx, id)
 	})
 
 	if err != nil {
@@ -223,7 +299,7 @@ func (s *StockService) DeductStock(
 
 			stock.AvailableQuantity -= item.Quantity
 
-			if err := s.repo.Update(ctx, stock); err != nil {
+			if err := s.Update(ctx, stock); err != nil {
 				return err
 			}
 		}
