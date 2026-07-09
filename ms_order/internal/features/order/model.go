@@ -67,6 +67,15 @@ func (m *Order) ToDTO() *OrderDTO {
 	}
 }
 
+func (m *OrderItem) ToDTO() *OrderItemDTO {
+	return &OrderItemDTO{
+		ID:        &m.ID,
+		ProductID: &m.ProductID,
+		Quantity:  &m.Quantity,
+		UnitPrice: &m.UnitPrice,
+	}
+}
+
 func (d OrderDTO) ToModel() *Order {
 	var model Order
 

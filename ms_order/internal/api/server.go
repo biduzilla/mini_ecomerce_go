@@ -30,11 +30,14 @@ func (app *application) Server() error {
 
 	repo := NewRepositories(app.db, app.Logger)
 	tx := transaction.NewManager(app.db)
-	services, err := NewServices(repo, tx, app.config, app.Logger)
+	producers := NewProducers(app.kafkaProducer, app.Logger)
+	clients := NewClients(app.config)
+	services, err := NewServices(repo, clients, producers, tx, app.config, app.Logger)
 	if err != nil {
 		return err
 	}
 
+	consumers := NewConsumers(app.kafkaConsumer, services, app.Logger)
 	errHandler := apiError.NewErrorHandler(app.Logger)
 	handlers := NewHandlers(services, errHandler)
 	middleware := middleware.New(
@@ -50,6 +53,25 @@ func (app *application) Server() error {
 		errHandler,
 		middleware,
 	)
+
+	app.wg.Add(1)
+	go func() {
+		defer app.wg.Done()
+		consumerCtx, cancel := context.WithCancel(context.Background())
+
+		go func() {
+			<-shutdown
+			cancel()
+		}()
+
+		app.Logger.PrintInfo("starting kafka stock consumer...", nil)
+
+		if err := consumers.stockConsumers.Start(consumerCtx); err != nil {
+			app.Logger.PrintError(fmt.Errorf("kafka consumer error: %w", err), nil)
+		}
+
+		app.Logger.PrintInfo("kafka stock consumer stopped gracefully", nil)
+	}()
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", app.config.Server.Port),
@@ -103,6 +125,9 @@ func (app *application) Server() error {
 	if err != nil {
 		return err
 	}
+
+	app.kafkaProducer.Close()
+	app.kafkaConsumer.Close()
 
 	app.Logger.PrintInfo("stopped server", map[string]string{
 		"addr": srv.Addr,

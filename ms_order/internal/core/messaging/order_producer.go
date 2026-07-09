@@ -5,21 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"ms_order/internal/core/events"
+	"ms_order/internal/core/jsonlog"
 
 	"github.com/IBM/sarama"
-	"go.uber.org/zap"
 )
 
 const OrderTopic = "orders"
 
 type OrderProducer struct {
 	producer sarama.SyncProducer
-	logger   *zap.Logger
+	logger   jsonlog.Logger
 }
 
 func NewOrderProducer(
 	producer sarama.SyncProducer,
-	logger *zap.Logger,
+	logger jsonlog.Logger,
 ) *OrderProducer {
 	return &OrderProducer{
 		producer: producer,
@@ -41,20 +41,23 @@ func (p *OrderProducer) PublishOrderCreated(ctx context.Context, event *events.O
 
 	partition, offset, err := p.producer.SendMessage(msg)
 	if err != nil {
-		p.logger.Error("Failed to publish order created event",
-			zap.String("eventId", event.EventID.String()),
-			zap.String("orderId", event.OrderID.String()),
-			zap.Error(err),
-		)
+		p.logger.PrintError(err,
+			map[string]string{
+				"eventId": event.EventID.String(),
+				"orderId": event.OrderID.String(),
+				"message": "Failed to publish order created event",
+			})
+
 		return fmt.Errorf("failed to publish order created event: %w", err)
 	}
 
-	p.logger.Info("Order created event published",
-		zap.String("eventId", event.EventID.String()),
-		zap.String("orderId", event.OrderID.String()),
-		zap.Int32("partition", partition),
-		zap.Int64("offset", offset),
-	)
+	p.logger.PrintInfo("Order created event published",
+		map[string]string{
+			"eventId":   event.EventID.String(),
+			"orderId":   event.OrderID.String(),
+			"partition": string(partition),
+			"offset":    fmt.Sprint(offset),
+		})
 
 	return nil
 }

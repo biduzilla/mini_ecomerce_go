@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"ms_order/internal/core/middleware"
+	"ms_order/internal/features/order"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -31,6 +32,7 @@ type errorHandler interface {
 type Router struct {
 	errHandler errorHandler
 	m          mw
+	*order.OrderRouter
 }
 
 func NewRouter(
@@ -39,8 +41,9 @@ func NewRouter(
 	m mw,
 ) *Router {
 	return &Router{
-		m:          m,
-		errHandler: errHandler,
+		m:           m,
+		errHandler:  errHandler,
+		OrderRouter: order.NewRouter(handlers.OrderHandler, m),
 	}
 }
 
@@ -74,6 +77,7 @@ func (router *Router) RegisterRoutes(db *sql.DB) *chi.Mux {
 		r.Use(router.m.EnableCORS)
 		r.Use(router.m.Authenticate)
 
+		router.OrderRouter.Routes(r)
 	})
 
 	return r

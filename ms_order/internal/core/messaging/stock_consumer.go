@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"ms_order/internal/core/events"
+	"ms_order/internal/core/jsonlog"
 	"ms_order/internal/features/order"
 
 	"github.com/IBM/sarama"
@@ -13,38 +14,84 @@ import (
 )
 
 type StockEventConsumer struct {
-	orderService orderService
+	consumerGroup sarama.ConsumerGroup
+	orderService  orderService
+	logger        jsonlog.Logger
 }
 
 type orderService interface {
-	UpdateOrderStatus(ctx context.Context, id uuid.UUID, status order.OrderStatus) error
+	UpdateStatus(ctx context.Context, id uuid.UUID, status order.OrderStatus) error
 }
 
-func NewStockEventConsumer(orderService orderService) *StockEventConsumer {
+func NewStockEventConsumer(
+	consumerGroup sarama.ConsumerGroup,
+	orderService orderService,
+	logger jsonlog.Logger,
+) *StockEventConsumer {
 	return &StockEventConsumer{
-		orderService: orderService,
+		consumerGroup: consumerGroup,
+		orderService:  orderService,
+		logger:        logger,
+	}
+}
+
+func (c *StockEventConsumer) Start(ctx context.Context) error {
+	topics := []string{"stock.check-result"}
+
+	for {
+		err := c.consumerGroup.Consume(ctx, topics, c)
+		if err != nil {
+			return err
+		}
+
+		if ctx.Err() != nil {
+			return nil
+		}
 	}
 }
 
 func (c *StockEventConsumer) handleAvailabilityCheck(event *events.AvailabilityCheckEvent) error {
-	slog.Info("📩 Recebido stock.check-result", "eventId", event.EventID, "orderId", event.OrderID)
+	c.logger.PrintInfo("📩 Recebido stock.check-result",
+		map[string]string{
+			"eventId": event.EventID.String(),
+			"orderId": event.OrderID.String(),
+		},
+	)
 
 	var status order.OrderStatus
 	if event.Available {
-		slog.Info("Estoque suficiente para pedido", "orderId", event.OrderID)
+		c.logger.PrintInfo("Estoque suficiente para pedido",
+			map[string]string{
+				"orderId": event.OrderID.String(),
+			},
+		)
 		status = order.OrderStatusApproved
 	} else {
-		slog.Warn("Estoque insuficiente para pedido", "orderId", event.OrderID)
+		c.logger.PrintInfo("Estoque insuficiente para pedido",
+			map[string]string{
+				"orderId": event.OrderID.String(),
+			},
+		)
 		status = order.OrderStatusRejected
 	}
 
-	err := c.orderService.UpdateOrderStatus(context.Background(), event.OrderID, status)
+	err := c.orderService.UpdateStatus(context.Background(), event.OrderID, status)
 	if err != nil {
-		slog.Error("Erro ao atualizar status do pedido", "orderId", event.OrderID, "error", err)
+		c.logger.PrintError(err,
+			map[string]string{
+				"orderId": event.OrderID.String(),
+				"message": "Erro ao atualizar status do pedido",
+			},
+		)
 		return err
 	}
 
-	slog.Info("✅ Pedido atualizado para status", "orderId", event.OrderID, "status", status)
+	c.logger.PrintInfo("✅ Pedido atualizado para status",
+		map[string]string{
+			"orderId": event.OrderID.String(),
+			"status":  string(status),
+		},
+	)
 	return nil
 }
 

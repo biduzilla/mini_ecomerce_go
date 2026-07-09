@@ -11,6 +11,9 @@ import (
 	"ms_order/internal/core/config"
 	"ms_order/internal/core/database"
 	"ms_order/internal/core/jsonlog"
+	"ms_order/internal/core/messaging"
+
+	"github.com/IBM/sarama"
 )
 
 type application struct {
@@ -18,6 +21,9 @@ type application struct {
 	Logger jsonlog.Logger
 	wg     sync.WaitGroup
 	db     *sql.DB
+
+	kafkaProducer sarama.SyncProducer
+	kafkaConsumer sarama.ConsumerGroup
 }
 
 const version = "1.0.0"
@@ -32,6 +38,14 @@ func NewApp(cfg config.Config) *application {
 	}
 
 	logger.PrintInfo("database connection pool established", nil)
+
+	producers, consumers, err := messaging.InitKafka(cfg.Kafka.Brokers, cfg.Kafka.GroupID)
+	if err != nil {
+		logger.PrintError(err, nil)
+		return nil
+	}
+
+	logger.PrintInfo("kafka producer and consumer established", nil)
 
 	expvar.NewString("version").Set(version)
 
@@ -48,8 +62,10 @@ func NewApp(cfg config.Config) *application {
 	}))
 
 	return &application{
-		config: cfg,
-		Logger: logger,
-		db:     db,
+		config:        cfg,
+		Logger:        logger,
+		db:            db,
+		kafkaProducer: producers,
+		kafkaConsumer: consumers,
 	}
 }

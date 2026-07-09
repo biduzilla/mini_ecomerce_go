@@ -37,7 +37,11 @@ type Config struct {
 		Db       int    `env:"CACHE_DB,required"`
 	}
 	Clients struct {
-		ProductURL string `env:"PRODUCT_SERVICE_URL,required"`
+		StockURL string `env:"STOCK_SERVICE_URL,required"`
+	}
+	Kafka struct {
+		Brokers []string `env:"KAFKA_BROKERS,required"`
+		GroupID string   `env:"KAFKA_GROUP_ID,required"`
 	}
 }
 
