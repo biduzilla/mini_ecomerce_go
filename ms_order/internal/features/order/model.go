@@ -30,7 +30,6 @@ func IsValidOrderStatus(status OrderStatus) bool {
 type Order struct {
 	models.BaseModel
 	ID          uuid.UUID
-	CustomerID  uuid.UUID
 	TotalAmount float64
 	Status      OrderStatus
 }
@@ -46,7 +45,6 @@ type OrderItem struct {
 
 type OrderDTO struct {
 	ID          *uuid.UUID     `json:"id"`
-	CustomerID  *uuid.UUID     `json:"customerId"`
 	Items       []OrderItemDTO `json:"items"`
 	TotalAmount *float64       `json:"totalAmount"`
 	Status      *OrderStatus   `json:"status"`
@@ -63,7 +61,6 @@ type OrderItemDTO struct {
 func (m *Order) ToDTO() *OrderDTO {
 	return &OrderDTO{
 		ID:          &m.ID,
-		CustomerID:  &m.CustomerID,
 		TotalAmount: &m.TotalAmount,
 		Status:      &m.Status,
 		CreatedAt:   &m.CreatedAt,
@@ -75,10 +72,6 @@ func (d OrderDTO) ToModel() *Order {
 
 	if d.ID != nil {
 		model.ID = *d.ID
-	}
-
-	if d.CustomerID != nil {
-		model.CustomerID = *d.CustomerID
 	}
 
 	if d.TotalAmount != nil {
@@ -119,7 +112,6 @@ func (d OrderItemDTO) ToModel(orderID uuid.UUID) *OrderItem {
 }
 
 func (o *Order) Validate(v *validator.Validator) {
-	v.Check(o.CustomerID != uuid.Nil, "customerId", "must be provided")
 	v.Check(o.TotalAmount >= 0, "totalAmount", "must be greater than or equal to 0")
 	v.Check(IsValidOrderStatus(o.Status), "status", "must be a valid order status (PENDING, APPROVED, REJECTED)")
 }
@@ -138,12 +130,6 @@ func ValidateOrderItems(v *validator.Validator, items []OrderItemDTO) {
 }
 
 func ValidateOrderDTO(v *validator.Validator, dto OrderDTO) {
-	v.Check(dto.CustomerID != nil, "customerId", "must be provided")
-
-	if dto.CustomerID != nil {
-		v.Check(*dto.CustomerID != uuid.Nil, "customerId", "must be a valid UUID")
-	}
-
 	ValidateOrderItems(v, dto.Items)
 
 	for i, item := range dto.Items {

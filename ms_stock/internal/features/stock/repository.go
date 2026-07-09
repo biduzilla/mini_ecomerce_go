@@ -282,14 +282,18 @@ func (r *StockRepository) DeleteById(ctx context.Context, id uuid.UUID) error {
 		panic("transaction necessary for this operation")
 	}
 
-	var returnedID uuid.UUID
-	err := tx.QueryRowContext(ctx, query, args).Scan(&returnedID)
-
+	result, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return apiError.ErrRecordNotFound
-		}
 		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return apiError.ErrRecordNotFound
 	}
 
 	return nil
