@@ -29,12 +29,12 @@ func NewRepository(
 	}
 }
 
-type OrderRepositoryInterface interface {
+type repository interface {
 	InsertWithItems(
 		ctx context.Context,
 		order *Order,
 		items []*OrderItem,
-	) (*Order, error)
+	) error
 
 	FindById(
 		ctx context.Context,
@@ -128,7 +128,7 @@ func (r *OrderRepository) insertItems(
 			valueStr,
 			fmt.Sprintf(
 				"(:order_id_%d,:product_id_%d,:quantity_%d,:unit_price_%d,:created_by_%d)",
-				i, i, i, i,
+				i, i, i, i, i,
 			),
 		)
 

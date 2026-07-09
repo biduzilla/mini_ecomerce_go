@@ -21,13 +21,13 @@ type StockDTO struct {
 	Version           *int       `json:"version"`
 }
 
+type AvailabilityCheckRequest struct {
+	Items []ItemRequest `json:"items"`
+}
+
 type ItemRequest struct {
 	ProductID uuid.UUID `json:"productId"`
 	Quantity  int       `json:"quantity"`
-}
-
-type AvailabilityCheckRequest struct {
-	Items []ItemRequest `json:"items"`
 }
 
 type AvailabilityCheckResponse struct {

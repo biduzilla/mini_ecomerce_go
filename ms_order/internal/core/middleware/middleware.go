@@ -214,6 +214,7 @@ func (m *middleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
+		r = r.WithContext(contexts.SetToken(r.Context(), token))
 		r = r.WithContext(contexts.SetUser(r.Context(), user))
 
 		next.ServeHTTP(w, r)

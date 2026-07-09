@@ -120,13 +120,11 @@ func (i *OrderItem) Validate(v *validator.Validator) {
 	v.Check(i.OrderID != uuid.Nil, "orderId", "must be provided")
 	v.Check(i.ProductID != uuid.Nil, "productId", "must be provided")
 	v.Check(i.Quantity > 0, "quantity", "must be greater than 0")
-	v.Check(i.Quantity <= 10000, "quantity", "must not be more than 10000")
 	v.Check(i.UnitPrice > 0, "unitPrice", "must be greater than 0")
 }
 
 func ValidateOrderItems(v *validator.Validator, items []OrderItemDTO) {
 	v.Check(len(items) > 0, "items", "must have at least one item")
-	v.Check(len(items) <= 100, "items", "must not have more than 100 items")
 }
 
 func ValidateOrderDTO(v *validator.Validator, dto OrderDTO) {
@@ -178,7 +176,7 @@ func ItemsToModels(dtos []OrderItemDTO, orderID uuid.UUID) ([]OrderItem, error) 
 	return items, nil
 }
 
-func CalculateTotalFromItems(items []OrderItem) float64 {
+func CalculateTotalFromItems(items []*OrderItem) float64 {
 	var total float64
 	for _, item := range items {
 		total += float64(item.Quantity) * item.UnitPrice
