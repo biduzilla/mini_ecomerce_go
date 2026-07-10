@@ -120,17 +120,20 @@ func (s *OrderService) checkAvailability(
 
 	if !response.Available {
 		var details strings.Builder
-		for _, d := range response.Details {
-			fmt.Fprintf(&details, "product %s: requested %d, available %d; ",
+		details.WriteString("Insufficient stock: ")
+
+		for i, d := range response.Details {
+			if i > 0 {
+				details.WriteString(" | ") // Separador mais limpo
+			}
+			fmt.Fprintf(&details, "Product %s (requested: %d, available: %d)",
 				d.ProductID,
 				d.Requested,
-				d.Available)
+				d.Available,
+			)
 		}
 
-		return apiError.NewApiError(
-			fmt.Sprintf("insufficient stock: %s", details.String()),
-			http.StatusBadRequest,
-		)
+		return apiError.NewApiError(details.String(), http.StatusUnprocessableEntity)
 	}
 
 	return nil

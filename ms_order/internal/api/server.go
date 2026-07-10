@@ -64,13 +64,13 @@ func (app *application) Server() error {
 			cancel()
 		}()
 
-		app.Logger.PrintInfo("starting kafka stock consumer...", nil)
+		app.Logger.PrintInfo("starting kafka order consumer...", nil)
 
 		if err := consumers.stockConsumers.Start(consumerCtx); err != nil {
 			app.Logger.PrintError(fmt.Errorf("kafka consumer error: %w", err), nil)
 		}
 
-		app.Logger.PrintInfo("kafka stock consumer stopped gracefully", nil)
+		app.Logger.PrintInfo("kafka order consumer stopped gracefully", nil)
 	}()
 
 	srv := &http.Server{

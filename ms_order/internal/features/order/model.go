@@ -126,7 +126,6 @@ func (o *Order) Validate(v *validator.Validator) {
 }
 
 func (i *OrderItem) Validate(v *validator.Validator) {
-	v.Check(i.OrderID != uuid.Nil, "orderId", "must be provided")
 	v.Check(i.ProductID != uuid.Nil, "productId", "must be provided")
 	v.Check(i.Quantity > 0, "quantity", "must be greater than 0")
 	v.Check(i.UnitPrice > 0, "unitPrice", "must be greater than 0")

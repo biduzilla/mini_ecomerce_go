@@ -3,9 +3,12 @@ package messaging
 import (
 	"context"
 	"encoding/json"
+	"ms_stock/internal/core/contexts"
+	"ms_stock/internal/core/domain"
 	"ms_stock/internal/core/events"
 	"ms_stock/internal/core/jsonlog"
 	"ms_stock/internal/features/stock"
+	"time"
 
 	"github.com/IBM/sarama"
 )
@@ -55,8 +58,22 @@ func (c *OrderEventConsumer) Start(ctx context.Context) error {
 
 	for {
 		err := c.consumerGroup.Consume(ctx, topics, c)
+
 		if err != nil {
-			return err
+			if ctx.Err() != nil {
+				return nil
+			}
+
+			c.logger.PrintInfo("kafka topic not ready yet, retrying in 5s...", map[string]string{
+				"error": err.Error(),
+			})
+
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(5 * time.Second):
+				continue
+			}
 		}
 
 		if ctx.Err() != nil {
@@ -66,14 +83,14 @@ func (c *OrderEventConsumer) Start(ctx context.Context) error {
 }
 
 func (c *OrderEventConsumer) handleOrderCreated(event *events.OrderCreatedEvent) error {
+	ctx := contexts.SetUser(context.Background(), domain.AnonymousUser)
+
 	c.logger.PrintInfo("📩 Recebido OrderCreatedEvent",
 		map[string]string{
 			"eventId": event.EventID.String(),
 			"orderId": event.OrderID.String(),
 		},
 	)
-
-	ctx := context.Background()
 
 	itemsReq := make([]stock.ItemRequest, len(event.Items))
 	for i, item := range event.Items {
@@ -99,13 +116,15 @@ func (c *OrderEventConsumer) handleOrderCreated(event *events.OrderCreatedEvent)
 
 	if checkResponse.Available {
 		err = c.stockService.DeductStock(ctx, checkReq)
-		c.logger.PrintError(err,
-			map[string]string{
-				"orderId": event.OrderID.String(),
-				"message": "Erro ao processar pedido",
-			},
-		)
-		return err
+		if err != nil {
+			c.logger.PrintError(err,
+				map[string]string{
+					"orderId": event.OrderID.String(),
+					"message": "Erro ao processar pedido",
+				},
+			)
+			return err
+		}
 	}
 
 	detailsEvent := make([]events.ItemAvailabilityDetailEvent, len(checkResponse.Details))
@@ -151,8 +170,14 @@ func (c *OrderEventConsumer) handleOrderCreated(event *events.OrderCreatedEvent)
 
 var _ sarama.ConsumerGroupHandler = (*OrderEventConsumer)(nil)
 
-func (c *OrderEventConsumer) Setup(sarama.ConsumerGroupSession) error   { return nil }
-func (c *OrderEventConsumer) Cleanup(sarama.ConsumerGroupSession) error { return nil }
+func (c *OrderEventConsumer) Setup(sarama.ConsumerGroupSession) error {
+	c.logger.PrintInfo("✅ Kafka consumer connected successfully, waiting for messages...", nil)
+	return nil
+}
+func (c *OrderEventConsumer) Cleanup(sarama.ConsumerGroupSession) error {
+	c.logger.PrintInfo("Kafka consumer disconnected, releasing resources...", nil)
+	return nil
+}
 
 func (c *OrderEventConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {

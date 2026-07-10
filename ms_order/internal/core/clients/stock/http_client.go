@@ -29,7 +29,7 @@ func (c *HTTPClient) CheckAvailability(
 	ctx context.Context,
 	request AvailabilityCheckRequest,
 ) (*AvailabilityCheckResponse, error) {
-	url := fmt.Sprintf("%s", c.baseURL)
+	url := fmt.Sprintf("%s/check-availability", c.baseURL)
 	body, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal availability check request: %w", err)

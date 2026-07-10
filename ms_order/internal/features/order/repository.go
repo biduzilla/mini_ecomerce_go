@@ -76,7 +76,7 @@ func (r *OrderRepository) InsertWithItems(
 
 	orderQuery := `
     INSERT INTO orders (total_amount, status, created_by)
-    VALUES (:customer_id, :total_amount, :status, :created_by)
+    VALUES (:total_amount, :status, :created_by)
     RETURNING id, created_at, version
     `
 
@@ -103,6 +103,10 @@ func (r *OrderRepository) InsertWithItems(
 	}
 
 	if len(items) > 0 {
+		for _, item := range items {
+			item.OrderID = order.ID
+		}
+
 		err := r.insertItems(ctx, items)
 		if err != nil {
 			return err
@@ -135,7 +139,7 @@ func (r *OrderRepository) insertItems(
 		params[fmt.Sprintf("order_id_%d", i)] = m.OrderID
 		params[fmt.Sprintf("product_id_%d", i)] = m.ProductID
 		params[fmt.Sprintf("quantity_%d", i)] = m.Quantity
-		params[fmt.Sprintf("unit_price_%d", i)] = m.Quantity
+		params[fmt.Sprintf("unit_price_%d", i)] = m.UnitPrice
 		params[fmt.Sprintf("created_by_%d", i)] = userAuth.GetID()
 	}
 
@@ -404,9 +408,8 @@ func (r *OrderRepository) DeleteById(
             updated_at = NOW(),
             updated_by = :user_id,
             version = version + 1
-        WHERE oi.order_id = :orderID
+        WHERE order_id = :orderID
             AND deleted = false
-        RETURNING version
     `
 
 	paramsItems := map[string]any{
@@ -417,7 +420,7 @@ func (r *OrderRepository) DeleteById(
 	parsedItemsQuery, args := sqlformat.NamedQuery(queryItems, paramsItems)
 	r.logger.PrintInfo(sqlformat.MinifySQL(parsedItemsQuery), nil)
 
-	result, err = tx.ExecContext(ctx, query, args...)
+	result, err = tx.ExecContext(ctx, parsedItemsQuery, args...)
 	if err != nil {
 		return err
 	}

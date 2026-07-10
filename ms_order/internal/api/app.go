@@ -3,7 +3,6 @@ package api
 import (
 	"database/sql"
 	"expvar"
-	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -28,13 +27,11 @@ type application struct {
 
 const version = "1.0.0"
 
-func NewApp(cfg config.Config) *application {
-	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
-
+func NewApp(cfg config.Config, logger jsonlog.Logger) (*application, error) {
 	db, err := database.OpenDB(cfg)
 	if err != nil {
 		logger.PrintError(err, nil)
-		return nil
+		return nil, err
 	}
 
 	logger.PrintInfo("database connection pool established", nil)
@@ -42,7 +39,7 @@ func NewApp(cfg config.Config) *application {
 	producers, consumers, err := messaging.InitKafka(cfg.Kafka.Brokers, cfg.Kafka.GroupID)
 	if err != nil {
 		logger.PrintError(err, nil)
-		return nil
+		return nil, err
 	}
 
 	logger.PrintInfo("kafka producer and consumer established", nil)
@@ -67,5 +64,5 @@ func NewApp(cfg config.Config) *application {
 		db:            db,
 		kafkaProducer: producers,
 		kafkaConsumer: consumers,
-	}
+	}, err
 }

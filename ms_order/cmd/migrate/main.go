@@ -37,8 +37,8 @@ func main() {
 	if dbString == "" {
 		log.Fatal("A variável de ambiente DB_DSN não está definida")
 	}
-	// db, err := goose.OpenDBWithDriver(dialect, c.DB.DSN)
 	db, err := goose.OpenDBWithDriver(dialect, dbString)
+	// db, err := goose.OpenDBWithDriver(dialect, dbString)
 	if err != nil {
 		log.Fatal(err)
 	}

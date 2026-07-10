@@ -3,9 +3,12 @@ package messaging
 import (
 	"context"
 	"encoding/json"
+	"ms_order/internal/core/contexts"
+	"ms_order/internal/core/domain"
 	"ms_order/internal/core/events"
 	"ms_order/internal/core/jsonlog"
 	"ms_order/internal/features/order"
+	"time"
 
 	"github.com/IBM/sarama"
 	"github.com/google/uuid"
@@ -38,8 +41,22 @@ func (c *StockEventConsumer) Start(ctx context.Context) error {
 
 	for {
 		err := c.consumerGroup.Consume(ctx, topics, c)
+
 		if err != nil {
-			return err
+			if ctx.Err() != nil {
+				return nil
+			}
+
+			c.logger.PrintInfo("kafka topic not ready yet, retrying in 5s...", map[string]string{
+				"error": err.Error(),
+			})
+
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(5 * time.Second):
+				continue
+			}
 		}
 
 		if ctx.Err() != nil {
@@ -49,6 +66,8 @@ func (c *StockEventConsumer) Start(ctx context.Context) error {
 }
 
 func (c *StockEventConsumer) handleAvailabilityCheck(event *events.AvailabilityCheckEvent) error {
+	ctx := contexts.SetUser(context.Background(), domain.AnonymousUser)
+
 	c.logger.PrintInfo("📩 Recebido stock.check-result",
 		map[string]string{
 			"eventId": event.EventID.String(),
@@ -73,7 +92,7 @@ func (c *StockEventConsumer) handleAvailabilityCheck(event *events.AvailabilityC
 		status = order.OrderStatusRejected
 	}
 
-	err := c.orderService.UpdateStatus(context.Background(), event.OrderID, status)
+	err := c.orderService.UpdateStatus(ctx, event.OrderID, status)
 	if err != nil {
 		c.logger.PrintError(err,
 			map[string]string{
@@ -95,8 +114,14 @@ func (c *StockEventConsumer) handleAvailabilityCheck(event *events.AvailabilityC
 
 var _ sarama.ConsumerGroupHandler = (*StockEventConsumer)(nil)
 
-func (c *StockEventConsumer) Setup(sarama.ConsumerGroupSession) error   { return nil }
-func (c *StockEventConsumer) Cleanup(sarama.ConsumerGroupSession) error { return nil }
+func (c *StockEventConsumer) Setup(sarama.ConsumerGroupSession) error {
+	c.logger.PrintInfo("✅ Kafka consumer connected successfully, waiting for messages...", nil)
+	return nil
+}
+func (c *StockEventConsumer) Cleanup(sarama.ConsumerGroupSession) error {
+	c.logger.PrintInfo("Kafka consumer disconnected, releasing resources...", nil)
+	return nil
+}
 
 func (c *StockEventConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {

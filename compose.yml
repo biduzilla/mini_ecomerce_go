@@ -126,6 +126,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_started
     volumes:
       - ./ms_stock/migrations:/root/migrations
       - ./ms_stock/internal/core/config:/root/config
@@ -133,8 +135,32 @@ services:
     networks:
       - api_network
 
+  ms-order:
+    build:
+      context: ./ms_order
+      dockerfile: Dockerfile
+    container_name: ms_order_api
+    env_file: ./ms_order/.env
+    environment:
+      DB_DSN: ${DB_DSN}
+    ports:
+      - "${ORDER_SERVER_PORT}:${ORDER_SERVER_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    volumes:
+      - ./ms_order/migrations:/root/migrations
+      - ./ms_order/internal/core/config:/root/config
+      - ./ms_order/resources/keys:/root/resources/keys
+    networks:
+      - api_network
+
   kafka:
-    container_name: kafka_mini_ecomerce
+    container_name: kafka_mini_ecomerce_go
     image: apache/kafka:latest
     ports:
       - "${KAFKA_PORT_INTERNAL}:${KAFKA_PORT_INTERNAL}"  # Internal listener (Docker network)
@@ -208,7 +234,7 @@ services:
       - api_network
 
   kafka-ui:
-    container_name: kafka-ui_mini_ecomerce
+    container_name: kafka-ui_mini_ecomerce_go
     image: ghcr.io/kafbat/kafka-ui:latest
     ports:
       - "${KAFKA_PORT_UI}:8080"
