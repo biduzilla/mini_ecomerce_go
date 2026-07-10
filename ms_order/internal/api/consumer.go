@@ -1,4 +1,3 @@
-// internal/api/consumers.go
 package api
 
 import (

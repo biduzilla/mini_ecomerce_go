@@ -1,10 +1,8 @@
-// internal/core/messaging/stock_consumer.go
 package messaging
 
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"ms_order/internal/core/events"
 	"ms_order/internal/core/jsonlog"
 	"ms_order/internal/features/order"
@@ -112,7 +110,9 @@ func (c *StockEventConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, c
 
 			var event events.AvailabilityCheckEvent
 			if err := json.Unmarshal(msg.Value, &event); err != nil {
-				slog.Error("Falha ao deserializar evento de estoque", "error", err)
+				c.logger.PrintError(err, map[string]string{
+					"message": "Falha ao deserializar evento de estoque",
+				})
 				session.MarkMessage(msg, "")
 				continue
 			}

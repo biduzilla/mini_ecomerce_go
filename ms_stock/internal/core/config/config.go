@@ -39,6 +39,10 @@ type Config struct {
 	Clients struct {
 		ProductURL string `env:"PRODUCT_SERVICE_URL,required"`
 	}
+	Kafka struct {
+		Brokers []string `env:"KAFKA_BROKERS,required"`
+		GroupID string   `env:"KAFKA_GROUP_ID,required"`
+	}
 }
 
 func New() *Config {
