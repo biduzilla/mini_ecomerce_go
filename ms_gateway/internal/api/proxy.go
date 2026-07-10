@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"ms_gateway/internal/core/jsonlog"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -12,26 +12,25 @@ import (
 	"github.com/sony/gobreaker"
 )
 
-func ProxyWithCircuitBreaker(
-	targetURL, circuitName, fallbackMsg string,
-	logger jsonlog.Logger,
-) http.Handler {
+func ProxyWithCircuitBreaker(targetURL string, circuitName string, fallbackMsg string) http.Handler {
 	target, err := url.Parse(targetURL)
 	if err != nil {
 		panic("Invalid target URL: " + err.Error())
 	}
 
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.Rewrite = func(pr *httputil.ProxyRequest) {
-		pr.SetURL(target)
-		incomingPath := pr.In.URL.Path
-		if strings.HasPrefix(incomingPath, "/api/") {
-			pr.Out.URL.Path = "/v1/" + strings.TrimPrefix(incomingPath, "/api/")
-		} else {
-			pr.Out.URL.Path = incomingPath
-		}
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.SetURL(target)
 
-		pr.SetXForwarded()
+			incomingPath := pr.In.URL.Path
+			if strings.HasPrefix(incomingPath, "/api/") {
+				pr.Out.URL.Path = "/v1/" + strings.TrimPrefix(incomingPath, "/api/")
+			} else {
+				pr.Out.URL.Path = incomingPath
+			}
+
+			pr.SetXForwarded()
+		},
 	}
 
 	cb := gobreaker.NewCircuitBreaker(gobreaker.Settings{
@@ -42,7 +41,7 @@ func ProxyWithCircuitBreaker(
 			return counts.ConsecutiveFailures > 5
 		},
 		OnStateChange: func(name string, from, to gobreaker.State) {
-			logger.PrintInfo(fmt.Sprintf("⚠️ Circuit Breaker '%s' mudou de %s para %s", name, from, to), nil)
+			log.Printf("⚠️ Circuit Breaker '%s' mudou de %s para %s", name, from, to)
 		},
 	})
 

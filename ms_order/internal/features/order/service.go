@@ -120,7 +120,7 @@ func (s *OrderService) checkAvailability(
 	if !response.Available {
 		details := make(map[string]string)
 		for _, d := range response.Details {
-			details["error"] = fmt.Sprintf("product_id %d, requested %d, available %d", d.ProductID, d.Requested, d.Available)
+			details["error"] = fmt.Sprintf("product_id %s, requested %d, available %d", d.ProductID.String(), d.Requested, d.Available)
 		}
 
 		return apiError.NewDetailedApiError(

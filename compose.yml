@@ -164,6 +164,7 @@ services:
       context: ./ms_gateway
       dockerfile: Dockerfile
     container_name: ms_gateway_api
+    env_file: ./ms_gateway/.env
     ports:
       - "${GATEWAY_PORT}:8080"
     depends_on:

@@ -13,33 +13,17 @@ func (app *application) Routes() http.Handler {
 		w.Write([]byte("Gateway OK"))
 	})
 
-	r.Handle("/api/auth/*", ProxyWithCircuitBreaker(
-		app.config.Services.AuthURL,
-		"msAuthCircuitBreaker",
-		"O serviço de autenticação está indisponível no momento.",
-		app.logger,
-	))
+	registerProxy := func(path string, targetURL, cbName, fallback string) {
+		handler := ProxyWithCircuitBreaker(targetURL, cbName, fallback)
+		r.Handle(path, handler)
+		r.Handle(path+"/*", handler)
+	}
 
-	r.Handle("/api/products/*", ProxyWithCircuitBreaker(
-		app.config.Services.ProductURL,
-		"msProductCircuitBreaker",
-		"O serviço de produtos está indisponível no momento.",
-		app.logger,
-	))
-
-	r.Handle("/api/stocks/*", ProxyWithCircuitBreaker(
-		app.config.Services.StockURL,
-		"msStockCircuitBreaker",
-		"O serviço de estoque está temporariamente indisponível.",
-		app.logger,
-	))
-
-	r.Handle("/api/orders/*", ProxyWithCircuitBreaker(
-		app.config.Services.OrderURL,
-		"msOrderCircuitBreaker",
-		"O serviço de pedidos está temporariamente indisponível.",
-		app.logger,
-	))
+	registerProxy("/api/auth", app.config.Services.AuthURL, "msAuthCircuitBreaker", "O serviço de autenticação está indisponível.")
+	registerProxy("/api/user", app.config.Services.AuthURL, "msAuthCircuitBreaker", "O serviço de usuários está indisponível.")
+	registerProxy("/api/product", app.config.Services.ProductURL, "msProductCircuitBreaker", "O serviço de produtos está indisponível.")
+	registerProxy("/api/stock", app.config.Services.StockURL, "msStockCircuitBreaker", "O serviço de estoque está temporariamente indisponível.")
+	registerProxy("/api/orders", app.config.Services.OrderURL, "msOrderCircuitBreaker", "O serviço de pedidos está temporariamente indisponível.")
 
 	return r
 }
