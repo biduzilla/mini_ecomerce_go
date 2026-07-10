@@ -32,6 +32,24 @@ func (e *ValidationError) Error() string {
 	return "validation failed"
 }
 
+type DetailedApiError struct {
+	Message string
+	Code    int
+	Details map[string]string
+}
+
+func (e *DetailedApiError) Error() string {
+	return e.Message
+}
+
+func NewDetailedApiError(message string, code int, details map[string]string) *DetailedApiError {
+	return &DetailedApiError{
+		Message: message,
+		Code:    code,
+		Details: details,
+	}
+}
+
 func NewErrorHandler(logger jsonlog.Logger) *ErrorHandler {
 	return &ErrorHandler{
 		logger: logger,
@@ -60,11 +78,15 @@ var (
 func (e *ErrorHandler) HandlerError(w http.ResponseWriter, r *http.Request, err error) {
 	var valErr *ValidationError
 	var apiError *ApiError
+	var detailedErr *DetailedApiError
+
 	switch {
 	case errors.As(err, &valErr):
 		e.FailedValidationResponse(w, r, valErr.FieldErrors)
 	case errors.As(err, &apiError):
 		e.errorHandler(w, r, apiError.Code, apiError.Message)
+	case errors.As(err, &detailedErr): // NOVO
+		e.DetailedResponse(w, r, detailedErr)
 
 	case errors.Is(err, context.DeadlineExceeded):
 		e.RequestTimeoutResponse(w, r)
@@ -112,6 +134,20 @@ func NewApiError(message string, code int) *ApiError {
 	return &ApiError{
 		Message: message,
 		Code:    code,
+	}
+}
+
+func (e *ErrorHandler) DetailedResponse(w http.ResponseWriter, r *http.Request, err *DetailedApiError) {
+	payload := map[string]any{
+		"status":  http.StatusText(err.Code),
+		"message": err.Message,
+		"details": err.Details,
+	}
+
+	writeErr := httpjson.WriteJSON(w, err.Code, payload, nil)
+	if writeErr != nil {
+		e.logError(r, writeErr)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 

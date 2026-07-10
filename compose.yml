@@ -159,6 +159,21 @@ services:
     networks:
       - api_network
 
+  ms-gateway:
+    build:
+      context: ./ms_gateway
+      dockerfile: Dockerfile
+    container_name: ms_gateway_api
+    ports:
+      - "${GATEWAY_PORT}:8080"
+    depends_on:
+      - ms-auth
+      - ms-product
+      - ms-stock
+      - ms-order
+    networks:
+      - api_network
+
   kafka:
     container_name: kafka_mini_ecomerce_go
     image: apache/kafka:latest

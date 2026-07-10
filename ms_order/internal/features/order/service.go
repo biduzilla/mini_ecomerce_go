@@ -11,7 +11,6 @@ import (
 	"ms_order/internal/core/transaction"
 	"ms_order/internal/core/validator"
 	"net/http"
-	"strings"
 
 	"github.com/google/uuid"
 )
@@ -119,21 +118,16 @@ func (s *OrderService) checkAvailability(
 	}
 
 	if !response.Available {
-		var details strings.Builder
-		details.WriteString("Insufficient stock: ")
-
-		for i, d := range response.Details {
-			if i > 0 {
-				details.WriteString(" | ") // Separador mais limpo
-			}
-			fmt.Fprintf(&details, "Product %s (requested: %d, available: %d)",
-				d.ProductID,
-				d.Requested,
-				d.Available,
-			)
+		details := make(map[string]string)
+		for _, d := range response.Details {
+			details["error"] = fmt.Sprintf("product_id %d, requested %d, available %d", d.ProductID, d.Requested, d.Available)
 		}
 
-		return apiError.NewApiError(details.String(), http.StatusUnprocessableEntity)
+		return apiError.NewDetailedApiError(
+			"insufficient stock for one or more products",
+			http.StatusUnprocessableEntity,
+			details,
+		)
 	}
 
 	return nil
