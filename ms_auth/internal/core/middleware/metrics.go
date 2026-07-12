@@ -59,16 +59,13 @@ var (
 )
 
 func init() {
-	// Registrar métricas HTTP
 	prometheus.MustRegister(httpRequestsTotal)
 	prometheus.MustRegister(httpRequestDuration)
 
-	// Registrar métricas do banco
 	prometheus.MustRegister(dbOpenConnections)
 	prometheus.MustRegister(dbInUseConnections)
 	prometheus.MustRegister(dbIdleConnections)
 
-	// Registrar métricas do runtime
 	prometheus.MustRegister(goGoroutines)
 	prometheus.MustRegister(goThreads)
 	prometheus.MustRegister(goMemoryAlloc)
