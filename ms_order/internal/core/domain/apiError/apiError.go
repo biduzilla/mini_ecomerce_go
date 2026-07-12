@@ -85,7 +85,7 @@ func (e *ErrorHandler) HandlerError(w http.ResponseWriter, r *http.Request, err 
 		e.FailedValidationResponse(w, r, valErr.FieldErrors)
 	case errors.As(err, &apiError):
 		e.errorHandler(w, r, apiError.Code, apiError.Message)
-	case errors.As(err, &detailedErr): // NOVO
+	case errors.As(err, &detailedErr):
 		e.DetailedResponse(w, r, detailedErr)
 
 	case errors.Is(err, context.DeadlineExceeded):
