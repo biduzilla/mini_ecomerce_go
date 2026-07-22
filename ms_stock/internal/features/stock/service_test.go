@@ -13,10 +13,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// ==========================================
-// 1. MOCKS
-// ==========================================
-
 type mockStockRepo struct {
 	findByIdFn           func(ctx context.Context, id uuid.UUID) (*Stock, error)
 	insertFn             func(ctx context.Context, model *Stock) error
@@ -101,10 +97,6 @@ type mockProductClient struct {
 func (m *mockProductClient) GetByID(ctx context.Context, id uuid.UUID) (*product.ProductDTO, error) {
 	return m.getByIdFn(ctx, id)
 }
-
-// ==========================================
-// 2. HELPERS
-// ==========================================
 
 func newValidStock(productID uuid.UUID, qty int) *Stock {
 	return &Stock{
