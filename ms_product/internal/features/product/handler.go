@@ -4,6 +4,9 @@ import (
 	"ms_product/internal/core/handler"
 	"ms_product/pkg/httputil"
 	"net/http"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type errorHandler interface {
@@ -36,13 +39,20 @@ func NewHandler(
 }
 
 func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_product/internal/features/product")
+	ctx, span := tracer.Start(r.Context(), "ProductHandler.GetByID")
+
+	defer span.End()
+
 	id, ok := handler.ParseUUID(w, r, h.errHandler)
 	if !ok {
 		return
 	}
 
-	model, err := h.service.GetByID(r.Context(), id)
+	model, err := h.service.GetByID(ctx, id)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to Get by ID")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -57,15 +67,24 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_product/internal/features/product")
+	ctx, span := tracer.Start(r.Context(), "ProductHandler.Create")
+
+	defer span.End()
+
 	var dto ProductDTO
 	if err := httputil.ReadJSON(w, r, &dto); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to read JSON")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
 
 	model := dto.ToModel()
 
-	if err := h.service.Create(r.Context(), model); err != nil {
+	if err := h.service.Create(ctx, model); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to Create")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -74,8 +93,15 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProductHandler) CreateAll(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_product/internal/features/product")
+	ctx, span := tracer.Start(r.Context(), "ProductHandler.CreateAll")
+
+	defer span.End()
+
 	var dtos []ProductDTO
 	if err := httputil.ReadJSON(w, r, &dtos); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to read JSON")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
@@ -85,7 +111,9 @@ func (h *ProductHandler) CreateAll(w http.ResponseWriter, r *http.Request) {
 		models[i] = dtos[i].ToModel()
 	}
 
-	if err := h.service.CreateAll(r.Context(), models); err != nil {
+	if err := h.service.CreateAll(ctx, models); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to create all")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -99,14 +127,23 @@ func (h *ProductHandler) CreateAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_auth/internal/features/auth")
+	ctx, span := tracer.Start(r.Context(), "AuthHandler.Update")
+
+	defer span.End()
+
 	var dto ProductDTO
 	if err := httputil.ReadJSON(w, r, &dto); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to read JSON")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
 
 	model := dto.ToModel()
-	if err := h.service.Update(r.Context(), model); err != nil {
+	if err := h.service.Update(ctx, model); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to update")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -115,12 +152,19 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_auth/internal/features/auth")
+	ctx, span := tracer.Start(r.Context(), "AuthHandler.Delete")
+
+	defer span.End()
+
 	id, ok := handler.ParseUUID(w, r, h.errHandler)
 	if !ok {
 		return
 	}
 
-	if err := h.service.Delete(r.Context(), id); err != nil {
+	if err := h.service.Delete(ctx, id); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to delete")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
