@@ -36,6 +36,9 @@ type Config struct {
 		Password string `env:"CACHE_PASSWORD,required"`
 		Db       int    `env:"CACHE_DB,required"`
 	}
+	Otel struct {
+		Port string `env:"JAEGER_PORT,required"`
+	}
 }
 
 func New() *Config {

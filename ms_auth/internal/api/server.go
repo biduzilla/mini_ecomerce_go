@@ -8,6 +8,7 @@ import (
 	"log"
 	"ms_auth/internal/core/domain/apiError"
 	"ms_auth/internal/core/middleware"
+	"ms_auth/internal/core/otel"
 	"ms_auth/internal/core/transaction"
 	"net/http"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type router interface {
@@ -26,6 +28,17 @@ func (app *application) Server() error {
 	defer app.db.Close()
 
 	shutdown := make(chan struct{})
+
+	shutdownTracer, err := otel.InitTracer("ms_auth", app.Logger)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err := shutdownTracer(context.Background()); err != nil {
+			app.Logger.PrintError(err, nil)
+		}
+	}()
 
 	repo := NewRepositories(app.db, app.Logger)
 	tx := transaction.NewManager(app.db)
@@ -50,9 +63,12 @@ func (app *application) Server() error {
 		middleware,
 	)
 
+	mux := router.RegisterRoutes(app.db)
+	instrumentedHandler := otelhttp.NewHandler(mux, "ms_auth")
+
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", app.config.Server.Port),
-		Handler:      router.RegisterRoutes(app.db),
+		Handler:      instrumentedHandler,
 		IdleTimeout:  time.Minute,
 		ErrorLog:     log.New(app.Logger, "", 0),
 		ReadTimeout:  10 * time.Second,

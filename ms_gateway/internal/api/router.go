@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func (app *application) Routes() http.Handler {
@@ -14,7 +15,9 @@ func (app *application) Routes() http.Handler {
 	})
 
 	registerProxy := func(path string, targetURL, cbName, fallback string) {
-		handler := ProxyWithCircuitBreaker(targetURL, cbName, fallback)
+		rawHandler := ProxyWithCircuitBreaker(targetURL, cbName, fallback)
+		handler := otelhttp.NewHandler(rawHandler, path)
+
 		r.Handle(path, handler)
 		r.Handle(path+"/*", handler)
 	}

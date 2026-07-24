@@ -74,7 +74,10 @@ services:
     container_name: ms_auth_api
     env_file: ./ms_auth/.env
     environment:
-      DB_DSN: ${DB_DSN}
+      - DB_DSN=${DB_DSN}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:${JAEGER_PORT}
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_SERVICE_NAME=ms_auth
     ports:
       - "${AUTH_SERVER_PORT}:${AUTH_SERVER_PORT}"
     depends_on:
@@ -165,6 +168,10 @@ services:
       dockerfile: Dockerfile
     container_name: ms_gateway_api
     env_file: ./ms_gateway/.env
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:${JAEGER_PORT}
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_SERVICE_NAME=ms_auth
     ports:
       - "${GATEWAY_PORT}:8080"
     depends_on:
@@ -261,6 +268,17 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:${KAFKA_PORT_INTERNAL}  # Use internal Docker network name
       DYNAMIC_CONFIG_ENABLED: 'true'
     restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    container_name: jaeger
+    ports:
+      - "${JAEGER_PORT_UI}:${JAEGER_PORT_UI}"
+      - "${JAEGER_PORT}:${JAEGER_PORT}"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - api_network   
 
 volumes:
   postgres_mini_ecomerce_data:

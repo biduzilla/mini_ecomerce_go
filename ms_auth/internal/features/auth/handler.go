@@ -5,6 +5,10 @@ import (
 	"ms_auth/pkg/httpjson"
 	"ms_auth/pkg/httputil"
 	"net/http"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type errorHandler interface {
@@ -34,6 +38,11 @@ func NewHandler(
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_auth/internal/features/auth")
+	ctx, span := tracer.Start(r.Context(), "AuthHandler.Login")
+
+	defer span.End()
+
 	var input struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -41,16 +50,24 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	err := httputil.ReadJSON(w, r, &input)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to read JSON")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
 
-	token, err := h.service.Login(r.Context(), input.Email, input.Password)
+	span.SetAttributes(attribute.String("user.email", input.Email))
+
+	token, err := h.service.Login(ctx, input.Email, input.Password)
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Authentication failed")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
+
+	span.SetStatus(codes.Ok, "Login successful")
 
 	handler.Respond(
 		w,

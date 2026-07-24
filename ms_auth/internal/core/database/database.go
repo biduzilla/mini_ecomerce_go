@@ -3,12 +3,20 @@ package database
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"ms_auth/internal/core/config"
 	"time"
+
+	"github.com/XSAM/otelsql"
 )
 
 func OpenDB(cfg config.Config) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.DB.DSN)
+	driverName, err := otelsql.Register("postgres")
+	if err != nil {
+		return nil, fmt.Errorf("erro ao registrar driver otelsql: %w", err)
+	}
+
+	db, err := sql.Open(driverName, cfg.DB.DSN)
 	if err != nil {
 		return nil, err
 	}

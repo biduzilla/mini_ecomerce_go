@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sony/gobreaker"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func ProxyWithCircuitBreaker(targetURL string, circuitName string, fallbackMsg string) http.Handler {
@@ -23,14 +24,15 @@ func ProxyWithCircuitBreaker(targetURL string, circuitName string, fallbackMsg s
 			pr.SetURL(target)
 
 			incomingPath := pr.In.URL.Path
-			if strings.HasPrefix(incomingPath, "/api/") {
-				pr.Out.URL.Path = "/v1/" + strings.TrimPrefix(incomingPath, "/api/")
+			if after, ok := strings.CutPrefix(incomingPath, "/api/"); ok {
+				pr.Out.URL.Path = "/v1/" + after
 			} else {
 				pr.Out.URL.Path = incomingPath
 			}
 
 			pr.SetXForwarded()
 		},
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
 	}
 
 	cb := gobreaker.NewCircuitBreaker(gobreaker.Settings{
