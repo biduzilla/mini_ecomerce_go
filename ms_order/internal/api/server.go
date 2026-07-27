@@ -14,9 +14,11 @@ import (
 
 	"ms_order/internal/core/domain/apiError"
 	"ms_order/internal/core/middleware"
+	"ms_order/internal/core/otel"
 	"ms_order/internal/core/transaction"
 
 	"github.com/go-chi/chi/v5"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type router interface {
@@ -28,6 +30,17 @@ func (app *application) Server() error {
 
 	shutdown := make(chan struct{})
 
+	shutdownTracer, err := otel.InitTracer("ms_order", app.Logger)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err := shutdownTracer(context.Background()); err != nil {
+			app.Logger.PrintError(err, nil)
+		}
+	}()
+
 	repo := NewRepositories(app.db, app.Logger)
 	tx := transaction.NewManager(app.db)
 	producers := NewProducers(app.kafkaProducer, app.Logger)
@@ -38,6 +51,7 @@ func (app *application) Server() error {
 	}
 
 	consumers := NewConsumers(app.kafkaConsumer, services, app.Logger)
+	shutdownConsumers := consumers.Start(app.Logger)
 	errHandler := apiError.NewErrorHandler(app.Logger)
 	handlers := NewHandlers(services, errHandler)
 	middleware := middleware.New(
@@ -54,28 +68,12 @@ func (app *application) Server() error {
 		middleware,
 	)
 
-	app.wg.Add(1)
-	go func() {
-		defer app.wg.Done()
-		consumerCtx, cancel := context.WithCancel(context.Background())
-
-		go func() {
-			<-shutdown
-			cancel()
-		}()
-
-		app.Logger.PrintInfo("starting kafka order consumer...", nil)
-
-		if err := consumers.stockConsumers.Start(consumerCtx); err != nil {
-			app.Logger.PrintError(fmt.Errorf("kafka consumer error: %w", err), nil)
-		}
-
-		app.Logger.PrintInfo("kafka order consumer stopped gracefully", nil)
-	}()
+	mux := router.RegisterRoutes(app.db)
+	instrumentedHandler := otelhttp.NewHandler(mux, "ms_stock")
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", app.config.Server.Port),
-		Handler:      router.RegisterRoutes(app.db),
+		Handler:      instrumentedHandler,
 		IdleTimeout:  time.Minute,
 		ErrorLog:     log.New(app.Logger, "", 0),
 		ReadTimeout:  10 * time.Second,
@@ -100,6 +98,8 @@ func (app *application) Server() error {
 		if err != nil {
 			shutdownError <- err
 		}
+
+		shutdownConsumers()
 
 		// defer app.db.Close()
 		close(shutdown)

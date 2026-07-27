@@ -129,7 +129,7 @@ func (h *StockHandler) CreateAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StockHandler) Update(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("ms_auth/internal/features/auth")
+	tracer := otel.Tracer("ms_stock/internal/features/stock")
 	ctx, span := tracer.Start(r.Context(), "StockHandler.Update")
 
 	defer span.End()
@@ -154,7 +154,7 @@ func (h *StockHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StockHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("ms_auth/internal/features/stock")
+	tracer := otel.Tracer("ms_stock/internal/features/stock")
 	ctx, span := tracer.Start(r.Context(), "StockHandler.Delete")
 
 	defer span.End()
@@ -182,14 +182,23 @@ func (h *StockHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StockHandler) CheckAvailability(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_stock/internal/features/stock")
+	ctx, span := tracer.Start(r.Context(), "StockHandler.CheckAvailability")
+
+	defer span.End()
+
 	var req AvailabilityCheckRequest
 	if err := httputil.ReadJSON(w, r, &req); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to read JSON")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
 
-	resp, err := h.service.CheckAvailability(r.Context(), req)
+	resp, err := h.service.CheckAvailability(ctx, req)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to check availability")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -198,13 +207,22 @@ func (h *StockHandler) CheckAvailability(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *StockHandler) DeductStock(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_stock/internal/features/stock")
+	ctx, span := tracer.Start(r.Context(), "StockHandler.DeductStock")
+
+	defer span.End()
+
 	var req AvailabilityCheckRequest
 	if err := httputil.ReadJSON(w, r, &req); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to read JSON")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
 
-	if err := h.service.DeductStock(r.Context(), req); err != nil {
+	if err := h.service.DeductStock(ctx, req); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to deduct stock")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}

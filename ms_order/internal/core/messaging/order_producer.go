@@ -8,6 +8,9 @@ import (
 	"ms_order/internal/core/jsonlog"
 
 	"github.com/IBM/sarama"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const OrderTopic = "orders"
@@ -28,15 +31,26 @@ func NewOrderProducer(
 }
 
 func (p *OrderProducer) PublishOrderCreated(ctx context.Context, event *events.OrderCreatedEvent) error {
+	tracer := otel.Tracer("ms_order/internal/features/messaging")
+	ctx, span := tracer.Start(ctx, "Kafka.PublishOrderCreated", trace.WithSpanKind(trace.SpanKindProducer))
+	defer span.End()
+
 	value, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal order created event: %w", err)
 	}
 
 	msg := &sarama.ProducerMessage{
-		Topic: OrderTopic,
-		Key:   sarama.StringEncoder(event.OrderID.String()),
-		Value: sarama.ByteEncoder(value),
+		Topic:   OrderTopic,
+		Key:     sarama.StringEncoder(event.OrderID.String()),
+		Value:   sarama.ByteEncoder(value),
+		Headers: []sarama.RecordHeader{},
+	}
+
+	carrier := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+	for k, v := range carrier {
+		msg.Headers = append(msg.Headers, sarama.RecordHeader{Key: []byte(k), Value: []byte(v)})
 	}
 
 	partition, offset, err := p.producer.SendMessage(msg)

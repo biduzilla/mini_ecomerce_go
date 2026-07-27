@@ -11,6 +11,10 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type OrderEventConsumer struct {
@@ -82,8 +86,8 @@ func (c *OrderEventConsumer) Start(ctx context.Context) error {
 	}
 }
 
-func (c *OrderEventConsumer) handleOrderCreated(event *events.OrderCreatedEvent) error {
-	ctx := contexts.SetUser(context.Background(), domain.AnonymousUser)
+func (c *OrderEventConsumer) handleOrderCreated(ctx context.Context, event *events.OrderCreatedEvent) error {
+	ctx = contexts.SetUser(ctx, domain.AnonymousUser)
 
 	c.logger.PrintInfo("📩 Recebido OrderCreatedEvent",
 		map[string]string{
@@ -189,8 +193,21 @@ func (c *OrderEventConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, c
 				return nil
 			}
 
+			carrier := propagation.MapCarrier{}
+			for _, h := range msg.Headers {
+				carrier[string(h.Key)] = string(h.Value)
+			}
+			ctx := otel.GetTextMapPropagator().Extract(context.Background(), carrier)
+
+			tracer := otel.Tracer("ms_stock/internal/features/messaging")
+			ctx, span := tracer.Start(ctx, "Kafka.ConsumeOrder", trace.WithSpanKind(trace.SpanKindConsumer))
+			defer span.End()
+
 			var event events.OrderCreatedEvent
 			if err := json.Unmarshal(msg.Value, &event); err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "failed to unmarshal event")
+
 				c.logger.PrintError(err, map[string]string{
 					"message": "Falha ao deserializar evento de stock",
 				})
@@ -198,7 +215,9 @@ func (c *OrderEventConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, c
 				continue
 			}
 
-			if err := c.handleOrderCreated(&event); err != nil {
+			if err := c.handleOrderCreated(ctx, &event); err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "handler failed")
 				return err
 			}
 

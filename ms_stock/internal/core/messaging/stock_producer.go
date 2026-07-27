@@ -8,6 +8,9 @@ import (
 	"ms_stock/internal/core/jsonlog"
 
 	"github.com/IBM/sarama"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const StockTopic = "stock.check-result"
@@ -31,15 +34,26 @@ func (p *StockEventProducer) PublishAvailabilityCheck(
 	ctx context.Context,
 	event events.AvailabilityCheckEvent,
 ) error {
+	tracer := otel.Tracer("ms_stock/internal/features/ormessagingder")
+	ctx, span := tracer.Start(ctx, "Kafka.PublishAvailabilityCheck", trace.WithSpanKind(trace.SpanKindProducer))
+	defer span.End()
+
 	value, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal order created event: %w", err)
 	}
 
 	msg := &sarama.ProducerMessage{
-		Topic: StockTopic,
-		Key:   sarama.StringEncoder(event.OrderID.String()),
-		Value: sarama.ByteEncoder(value),
+		Topic:   StockTopic,
+		Key:     sarama.StringEncoder(event.OrderID.String()),
+		Value:   sarama.ByteEncoder(value),
+		Headers: []sarama.RecordHeader{},
+	}
+
+	carrier := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+	for k, v := range carrier {
+		msg.Headers = append(msg.Headers, sarama.RecordHeader{Key: []byte(k), Value: []byte(v)})
 	}
 
 	partition, offset, err := p.producer.SendMessage(msg)

@@ -10,6 +10,9 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type errorHandler interface {
@@ -48,8 +51,15 @@ func NewHandler(
 }
 
 func (h *OrderHandler) ProcessOrder(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_stock/internal/features/order")
+	ctx, span := tracer.Start(r.Context(), "ProcessOrder.ProcessOrder")
+
+	defer span.End()
+
 	var dto OrderDTO
 	if err := httputil.ReadJSON(w, r, &dto); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to read JSON")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
@@ -57,6 +67,9 @@ func (h *OrderHandler) ProcessOrder(w http.ResponseWriter, r *http.Request) {
 	v := validator.New()
 	ValidateOrderDTO(v, dto)
 	if !v.Valid() {
+		err := fmt.Errorf("Invalid Order DTO: %s", v.Errors)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalid order DTO")
 		h.errHandler.HandlerError(w, r, apiError.NewValidationError(v.Errors))
 		return
 	}
@@ -64,6 +77,8 @@ func (h *OrderHandler) ProcessOrder(w http.ResponseWriter, r *http.Request) {
 	orderModel := dto.ToModel()
 	itemModels, err := ItemsToModels(dto.Items, orderModel.ID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to convert DTOs to Models")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
@@ -73,7 +88,7 @@ func (h *OrderHandler) ProcessOrder(w http.ResponseWriter, r *http.Request) {
 		itemPtrs[i] = &itemModels[i]
 	}
 
-	if err := h.service.processOrder(r.Context(), orderModel, itemPtrs); err != nil {
+	if err := h.service.processOrder(ctx, orderModel, itemPtrs); err != nil {
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -89,13 +104,22 @@ func (h *OrderHandler) ProcessOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *OrderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_order/internal/features/order")
+	ctx, span := tracer.Start(r.Context(), "GetByID.GetByID")
+
+	defer span.End()
+
 	id, ok := handler.ParseUUID(w, r, h.errHandler)
 	if !ok {
 		return
 	}
 
-	orderModel, items, err := h.service.FindByID(r.Context(), id)
+	span.SetAttributes(attribute.String("order.id", id.String()))
+
+	orderModel, items, err := h.service.FindByID(ctx, id)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to Get by ID")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -111,12 +135,21 @@ func (h *OrderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *OrderHandler) DeleteById(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_order/internal/features/order")
+	ctx, span := tracer.Start(r.Context(), "OrderHandler.DeleteById")
+
+	defer span.End()
+
 	id, ok := handler.ParseUUID(w, r, h.errHandler)
 	if !ok {
 		return
 	}
 
-	if err := h.service.DeleteById(r.Context(), id); err != nil {
+	span.SetAttributes(attribute.String("order.id", id.String()))
+
+	if err := h.service.DeleteById(ctx, id); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to delete")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -125,6 +158,11 @@ func (h *OrderHandler) DeleteById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *OrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_order/internal/features/order")
+	ctx, span := tracer.Start(r.Context(), "OrderHandler.UpdateStatus")
+
+	defer span.End()
+
 	id, ok := handler.ParseUUID(w, r, h.errHandler)
 	if !ok {
 		return
@@ -134,16 +172,28 @@ func (h *OrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		Status OrderStatus `json:"status"`
 	}
 	if err := httputil.ReadJSON(w, r, &req); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to read JSON")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
 
 	if !IsValidOrderStatus(req.Status) {
+		err := fmt.Errorf("invalid status: %s", req.Status)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalid status")
 		h.errHandler.BadRequestResponse(w, r, fmt.Errorf("invalid status: %s", req.Status))
 		return
 	}
 
-	if err := h.service.UpdateStatus(r.Context(), id, req.Status); err != nil {
+	span.SetAttributes(
+		attribute.String("order.ID", id.String()),
+		attribute.String("order.status", string(req.Status)),
+	)
+
+	if err := h.service.UpdateStatus(ctx, id, req.Status); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to update status")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}

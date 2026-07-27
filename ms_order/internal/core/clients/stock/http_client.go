@@ -9,6 +9,8 @@ import (
 	"ms_order/internal/core/contexts"
 	"ms_order/internal/core/domain/apiError"
 	"net/http"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type HTTPClient struct {
@@ -20,7 +22,8 @@ func NewClient(cfg Config) *HTTPClient {
 	return &HTTPClient{
 		baseURL: cfg.BaseURL,
 		httpClient: &http.Client{
-			Timeout: cfg.Timeout,
+			Timeout:   cfg.Timeout,
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
 		},
 	}
 }
