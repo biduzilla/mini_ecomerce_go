@@ -1,4 +1,4 @@
-package middleware
+package metrics
 
 import (
 	"database/sql"
@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	httpRequestsTotal = prometheus.NewCounterVec(
+	HttpRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
 			Help: "Total de requisições HTTP processadas, particionado por método, path e status.",
@@ -18,7 +18,7 @@ var (
 		[]string{"method", "path", "status"},
 	)
 
-	httpRequestDuration = prometheus.NewHistogramVec(
+	HttpRequestDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "http_request_duration_seconds",
 			Help:    "Duração das requisições HTTP em segundos.",
@@ -58,9 +58,21 @@ var (
 	})
 )
 
+var (
+	LoginAttempts = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "login_attempts_total",
+			Help: "Total de tentativas de login, por resultado.",
+		},
+		[]string{"status"},
+	)
+)
+
 func init() {
-	prometheus.MustRegister(httpRequestsTotal)
-	prometheus.MustRegister(httpRequestDuration)
+	prometheus.MustRegister(LoginAttempts)
+
+	prometheus.MustRegister(HttpRequestsTotal)
+	prometheus.MustRegister(HttpRequestDuration)
 
 	prometheus.MustRegister(dbOpenConnections)
 	prometheus.MustRegister(dbInUseConnections)

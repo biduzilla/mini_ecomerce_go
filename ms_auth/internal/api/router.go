@@ -3,7 +3,7 @@ package api
 import (
 	"database/sql"
 	"expvar"
-	"ms_auth/internal/core/middleware"
+	"ms_auth/internal/core/metrics"
 	"ms_auth/internal/features/auth"
 	"ms_auth/internal/features/user"
 	"net/http"
@@ -71,7 +71,7 @@ func (router *Router) RegisterRoutes(db *sql.DB) *chi.Mux {
 		w.Write([]byte("OK"))
 	})
 
-	r.Handle("/metrics", middleware.MetricsHandler(db))
+	r.Handle("/metrics", metrics.MetricsHandler(db))
 	r.Mount("/debug/vars", expvar.Handler())
 
 	r.Route("/v1", func(r chi.Router) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"ms_auth/internal/core/domain"
 	"ms_auth/internal/core/domain/apiError"
+	"ms_auth/internal/core/metrics"
 	"ms_auth/internal/core/security"
 	"ms_auth/internal/core/validator"
 	"ms_auth/internal/features/user"
@@ -60,24 +61,33 @@ func (s *AuthService) Login(
 	v := validator.New()
 	user.ValidatePasswordPlaintext(v, password)
 	if !v.Valid() {
+		metrics.LoginAttempts.WithLabelValues("validation_error").Inc()
 		return nil, apiError.NewValidationError(v.Errors)
 	}
 
 	user, err := s.userService.FindByEmail(ctx, email)
 	if err != nil {
+		if errors.Is(err, apiError.ErrRecordNotFound) {
+			metrics.LoginAttempts.WithLabelValues("invalid_credentials").Inc()
+		} else {
+			metrics.LoginAttempts.WithLabelValues("error").Inc()
+		}
 		return nil, err
 	}
 
 	if !user.Activated {
+		metrics.LoginAttempts.WithLabelValues("inactive_account").Inc()
 		return nil, apiError.ErrInactiveAccount
 	}
 
 	match, err := user.Senha.Matches(password)
 	if err != nil {
+		metrics.LoginAttempts.WithLabelValues("error").Inc()
 		return nil, err
 	}
 
 	if !match {
+		metrics.LoginAttempts.WithLabelValues("invalid_credentials").Inc()
 		return nil, apiError.ErrInvalidCredentials
 	}
 
@@ -86,6 +96,7 @@ func (s *AuthService) Login(
 		security.TokenTypeAccess,
 	)
 	if err != nil {
+		metrics.LoginAttempts.WithLabelValues("token_creation_failed").Inc()
 		return nil, fmt.Errorf("failed to create access token: %w", err)
 	}
 
@@ -94,10 +105,14 @@ func (s *AuthService) Login(
 		security.TokenTypeRefresh,
 	)
 	if err != nil {
+		metrics.LoginAttempts.WithLabelValues("token_creation_failed").Inc()
 		return nil, fmt.Errorf("failed to create refresh token: %w", err)
 	}
 
 	token := NewTokenResponse(accessToken, refreshToken, tokenExpiration)
+
+	metrics.LoginAttempts.WithLabelValues("success").Inc()
+
 	return &token, nil
 }
 

@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'ms_auth'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ms_auth_api:4001']
+
+  - job_name: 'ms_product'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ms_product_api:4002']
+
+  - job_name: 'ms_stock'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ms_stock_api:4003']
+
+  - job_name: 'ms_order'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ms_order_api:4004']
+
+  - job_name: 'ms_gateway'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ms_gateway_api:8080']

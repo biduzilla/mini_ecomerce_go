@@ -8,6 +8,7 @@ import (
 	"ms_auth/internal/core/contexts"
 	"ms_auth/internal/core/domain"
 	"ms_auth/internal/core/jsonlog"
+	"ms_auth/internal/core/metrics"
 	"net"
 	"net/http"
 	"slices"
@@ -119,13 +120,13 @@ func (m *middleware) Metrics(next http.Handler) http.Handler {
 		duration := time.Since(start).Seconds()
 		status := strconv.Itoa(mw.statusCode)
 
-		httpRequestsTotal.WithLabelValues(
+		metrics.HttpRequestsTotal.WithLabelValues(
 			r.Method,
 			r.URL.Path,
 			status,
 		).Inc()
 
-		httpRequestDuration.WithLabelValues(
+		metrics.HttpRequestDuration.WithLabelValues(
 			r.Method,
 			r.URL.Path,
 		).Observe(duration)

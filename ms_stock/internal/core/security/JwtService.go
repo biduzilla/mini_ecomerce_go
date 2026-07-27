@@ -28,8 +28,8 @@ type JwtService struct {
 const (
 	AccessTokenExpiration  = 3 * time.Hour
 	RefreshTokenExpiration = 7 * 24 * time.Hour
-	TokenIssuer            = "controle-financas-api"
-	TokenAudience          = "controle-financas-clients"
+	TokenIssuer            = "mini_ecomerce-go-api"
+	TokenAudience          = "mini_ecomerce-go-clients"
 )
 
 type TokenType string

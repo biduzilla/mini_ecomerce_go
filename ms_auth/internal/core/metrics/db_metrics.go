@@ -1,4 +1,4 @@
-package middleware
+package metrics
 
 import (
 	"database/sql"

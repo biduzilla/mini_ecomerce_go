@@ -36,36 +36,36 @@ services:
     networks:
       - api_network
 
-  # prometheus:
-  #   image: prom/prometheus:latest
-  #   container_name: go_prometheus
-  #   volumes:
-  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml
-  #     - prometheus_data:/prometheus
-  #   command:
-  #     - '--config.file=/etc/prometheus/prometheus.yml'
-  #     - '--storage.tsdb.path=/prometheus'
-  #   ports:
-  #     - "9090:9090"
-  #   networks:
-  #     - api_network
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: go_prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - api_network
 
-  # grafana:
-  #   image: grafana/grafana:latest
-  #   container_name: go_grafana
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     - GF_SECURITY_ADMIN_PASSWORD=admin
-  #     - GF_USERS_ALLOW_SIGN_UP=false
-  #   volumes:
-  #     - grafana_data:/var/lib/grafana
-  #     - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
-  #     - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
-  #   depends_on:
-  #     - prometheus
-  #   networks:
-  #     - api_network
+  grafana:
+    image: grafana/grafana:latest
+    container_name: go_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - api_network
 
   ms-auth:
     build:
@@ -292,8 +292,8 @@ services:
 volumes:
   postgres_mini_ecomerce_data:
   redis_mini_ecomerce_data:
-  # prometheus_data:
-  # grafana_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   api_network:
