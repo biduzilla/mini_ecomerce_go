@@ -307,7 +307,11 @@ func TestDeductStock_Success(t *testing.T) {
 		},
 	}
 	cacheMock := &mockCache{getFn: func(ctx context.Context, key string, dest any) error { return errors.New("miss") }}
-	productMock := &mockProductClient{}
+	productMock := &mockProductClient{
+		getByIdFn: func(ctx context.Context, id uuid.UUID) (*product.ProductDTO, error) {
+			return &product.ProductDTO{}, nil
+		},
+	}
 
 	svc := NewService(repo, &mockTxManager{}, cacheMock, &mockKeyBuilder{}, productMock)
 
@@ -349,5 +353,99 @@ func TestFindByID_Success_FromDB(t *testing.T) {
 	}
 	if stock.ID != expectedStock.ID {
 		t.Error("Returned wrong stock")
+	}
+}
+
+func TestUpdate_ValidationFailure_ShortCircuit(t *testing.T) {
+	invalidModel := &Stock{AvailableQuantity: 0}
+
+	updateCalled := false
+	repo := &mockStockRepo{
+		updateFn: func(ctx context.Context, model *Stock) error {
+			updateCalled = true
+			return nil
+		},
+	}
+
+	svc := NewService(repo, &mockTxManager{}, &mockCache{}, &mockKeyBuilder{}, &mockProductClient{})
+
+	err := svc.Update(context.Background(), invalidModel)
+
+	if err == nil {
+		t.Fatal("Expected validation error, got nil")
+	}
+	if updateCalled {
+		t.Error("Database Update was called for invalid data!")
+	}
+}
+
+func TestUpdate_ProductNotFound_ShortCircuit(t *testing.T) {
+	validModel := newValidStock(uuid.New(), 5)
+
+	updateCalled := false
+	repo := &mockStockRepo{
+		updateFn: func(ctx context.Context, model *Stock) error {
+			updateCalled = true
+			return nil
+		},
+	}
+
+	productClient := &mockProductClient{
+		getByIdFn: func(ctx context.Context, id uuid.UUID) (*product.ProductDTO, error) {
+			return nil, apiError.ErrRecordNotFound
+		},
+	}
+
+	svc := NewService(repo, &mockTxManager{}, &mockCache{}, &mockKeyBuilder{}, productClient)
+
+	err := svc.Update(context.Background(), validModel)
+
+	if err == nil {
+		t.Fatal("Expected error because product does not exist, got nil")
+	}
+	if updateCalled {
+		t.Error("Database Update was called for invalid data!")
+	}
+}
+
+func TestUpdate_Success(t *testing.T) {
+	validModel := newValidStock(uuid.New(), 5)
+
+	updateCalled := false
+	repo := &mockStockRepo{
+		updateFn: func(ctx context.Context, model *Stock) error {
+			updateCalled = true
+			return nil
+		},
+	}
+	cacheCleared := make(chan struct{})
+	cacheMock := &mockCache{
+		deleteByPrefixFn: func(ctx context.Context, prefix string) error {
+			close(cacheCleared)
+			return nil
+		},
+	}
+
+	productClient := &mockProductClient{
+		getByIdFn: func(ctx context.Context, id uuid.UUID) (*product.ProductDTO, error) {
+			return &product.ProductDTO{}, nil
+		},
+	}
+
+	svc := NewService(repo, &mockTxManager{}, cacheMock, &mockKeyBuilder{}, productClient)
+
+	err := svc.Update(context.Background(), validModel)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if !updateCalled {
+		t.Error("Repo was not called for valid data")
+	}
+
+	select {
+	case <-cacheCleared:
+	case <-time.After(1 * time.Second):
+		t.Fatal("Cache was not cleared within 1 second")
 	}
 }

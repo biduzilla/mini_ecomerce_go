@@ -137,7 +137,12 @@ func (s *StockService) Update(
 		return apiError.NewValidationError(v.Errors)
 	}
 
-	err := s.tx.RunInTx(ctx, func(ctx context.Context) error {
+	_, err := s.productClient.GetByID(ctx, model.ProductId)
+	if err != nil {
+		return err
+	}
+
+	err = s.tx.RunInTx(ctx, func(ctx context.Context) error {
 		return s.repo.Update(ctx, model)
 	})
 

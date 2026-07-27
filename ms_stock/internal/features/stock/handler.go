@@ -4,6 +4,9 @@ import (
 	"ms_stock/internal/core/handler"
 	"ms_stock/pkg/httputil"
 	"net/http"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type errorHandler interface {
@@ -38,13 +41,20 @@ func NewHandler(
 }
 
 func (h *StockHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_stock/internal/features/stock")
+	ctx, span := tracer.Start(r.Context(), "StockHandler.GetByID")
+
+	defer span.End()
+
 	id, ok := handler.ParseUUID(w, r, h.errHandler)
 	if !ok {
 		return
 	}
 
-	model, err := h.service.FindByID(r.Context(), id)
+	model, err := h.service.FindByID(ctx, id)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to Get by ID")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -59,15 +69,24 @@ func (h *StockHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StockHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_stock/internal/features/stock")
+	ctx, span := tracer.Start(r.Context(), "StockHandler.Create")
+
+	defer span.End()
+
 	var dto StockDTO
 	if err := httputil.ReadJSON(w, r, &dto); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to read JSON")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
 
 	model := dto.ToModel()
 
-	if err := h.service.CreateStock(r.Context(), model); err != nil {
+	if err := h.service.CreateStock(ctx, model); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to Create")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -76,8 +95,15 @@ func (h *StockHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StockHandler) CreateAll(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_stock/internal/features/stock")
+	ctx, span := tracer.Start(r.Context(), "StockHandler.CreateAll")
+
+	defer span.End()
+
 	var dtos []StockDTO
 	if err := httputil.ReadJSON(w, r, &dtos); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to read JSON")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
@@ -87,7 +113,9 @@ func (h *StockHandler) CreateAll(w http.ResponseWriter, r *http.Request) {
 		models[i] = dtos[i].ToModel()
 	}
 
-	if err := h.service.CreateAllStock(r.Context(), models); err != nil {
+	if err := h.service.CreateAllStock(ctx, models); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to create all")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -101,14 +129,23 @@ func (h *StockHandler) CreateAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StockHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_auth/internal/features/auth")
+	ctx, span := tracer.Start(r.Context(), "StockHandler.Update")
+
+	defer span.End()
+
 	var dto StockDTO
 	if err := httputil.ReadJSON(w, r, &dto); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to read JSON")
 		h.errHandler.BadRequestResponse(w, r, err)
 		return
 	}
 
 	model := dto.ToModel()
-	if err := h.service.Update(r.Context(), model); err != nil {
+	if err := h.service.Update(ctx, model); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to update")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
@@ -117,12 +154,19 @@ func (h *StockHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StockHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("ms_auth/internal/features/stock")
+	ctx, span := tracer.Start(r.Context(), "StockHandler.Delete")
+
+	defer span.End()
+
 	id, ok := handler.ParseUUID(w, r, h.errHandler)
 	if !ok {
 		return
 	}
 
-	if err := h.service.DeleteById(r.Context(), id); err != nil {
+	if err := h.service.DeleteById(ctx, id); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to delete")
 		h.errHandler.HandlerError(w, r, err)
 		return
 	}
