@@ -124,7 +124,10 @@ services:
     container_name: ms_stock_api
     env_file: ./ms_stock/.env
     environment:
-      DB_DSN: ${DB_DSN}
+      - DB_DSN=${DB_DSN}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:${JAEGER_PORT}
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_SERVICE_NAME=ms_stock
     ports:
       - "${STOCK_SERVER_PORT}:${STOCK_SERVER_PORT}"
     depends_on:

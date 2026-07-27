@@ -127,8 +127,8 @@ func (h *ProductHandler) CreateAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("ms_auth/internal/features/auth")
-	ctx, span := tracer.Start(r.Context(), "AuthHandler.Update")
+	tracer := otel.Tracer("ms_auth/internal/features/product")
+	ctx, span := tracer.Start(r.Context(), "ProductHandler.Update")
 
 	defer span.End()
 
@@ -152,7 +152,7 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("ms_auth/internal/features/auth")
+	tracer := otel.Tracer("ms_auth/internal/features/product")
 	ctx, span := tracer.Start(r.Context(), "AuthHandler.Delete")
 
 	defer span.End()
