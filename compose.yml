@@ -151,7 +151,10 @@ services:
     container_name: ms_order_api
     env_file: ./ms_order/.env
     environment:
-      DB_DSN: ${DB_DSN}
+      - DB_DSN=${DB_DSN}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:${JAEGER_PORT}
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_SERVICE_NAME=ms_order
     ports:
       - "${ORDER_SERVER_PORT}:${ORDER_SERVER_PORT}"
     depends_on:

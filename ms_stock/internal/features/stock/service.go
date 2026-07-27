@@ -137,12 +137,12 @@ func (s *StockService) Update(
 		return apiError.NewValidationError(v.Errors)
 	}
 
-	_, err := s.productClient.GetByID(ctx, model.ProductId)
-	if err != nil {
-		return err
-	}
+	// _, err := s.productClient.GetByID(ctx, model.ProductId)
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = s.tx.RunInTx(ctx, func(ctx context.Context) error {
+	err := s.tx.RunInTx(ctx, func(ctx context.Context) error {
 		return s.repo.Update(ctx, model)
 	})
 
