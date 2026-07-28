@@ -45,7 +45,7 @@ type JWTService interface {
 	ExtractAuthenticatedUser(tokenString string) (domain.UserDetails, error)
 }
 
-type middleware struct {
+type Middleware struct {
 	errHandler errorHandler
 	jwtService JWTService
 	config     config.Config
@@ -59,8 +59,8 @@ func New(
 	jwtService JWTService,
 	logger jsonlog.Logger,
 	shutdown <-chan struct{},
-) *middleware {
-	return &middleware{
+) *Middleware {
+	return &Middleware{
 		jwtService: jwtService,
 		errHandler: errHandler,
 		config:     config,
@@ -103,7 +103,7 @@ func (mw *metricsResponseWriter) Unwrap() http.ResponseWriter {
 	return mw.wrapped
 }
 
-func (m *middleware) Metrics(next http.Handler) http.Handler {
+func (m *Middleware) Metrics(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		totalRequestsReceived.Add(1)
@@ -133,7 +133,7 @@ func (m *middleware) Metrics(next http.Handler) http.Handler {
 	})
 }
 
-func (m *middleware) EnableCORS(next http.Handler) http.Handler {
+func (m *Middleware) EnableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Vary", "Origin")
 		w.Header().Add("Vary", "Access-Control-Request-Method")
@@ -156,7 +156,7 @@ func (m *middleware) EnableCORS(next http.Handler) http.Handler {
 	})
 }
 
-func (m *middleware) RequireAuthenticatedUser(next http.Handler) http.Handler {
+func (m *Middleware) RequireAuthenticatedUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := contexts.GetUser(r.Context())
 
@@ -168,7 +168,7 @@ func (m *middleware) RequireAuthenticatedUser(next http.Handler) http.Handler {
 	})
 }
 
-func (m *middleware) RequireActivatedUser(next http.Handler) http.Handler {
+func (m *Middleware) RequireActivatedUser(next http.Handler) http.Handler {
 	return m.RequireAuthenticatedUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := contexts.GetUser(r.Context())
 		if !user.GetIsAtivo() {
@@ -179,7 +179,7 @@ func (m *middleware) RequireActivatedUser(next http.Handler) http.Handler {
 	}))
 }
 
-func (m *middleware) Authenticate(next http.Handler) http.Handler {
+func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Vary", "Authorization")
 		authorizationHeader := r.Header.Get("Authorization")
@@ -221,7 +221,7 @@ func (m *middleware) Authenticate(next http.Handler) http.Handler {
 	})
 }
 
-func (m *middleware) handleTokenError(w http.ResponseWriter, r *http.Request, err error) {
+func (m *Middleware) handleTokenError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case strings.Contains(err.Error(), "malformed"):
 		m.errHandler.MalFormedTokenResponse(w, r)
@@ -232,7 +232,7 @@ func (m *middleware) handleTokenError(w http.ResponseWriter, r *http.Request, er
 	}
 }
 
-func (m *middleware) RequirePermission(codes []string) func(http.Handler) http.Handler {
+func (m *Middleware) RequirePermission(codes []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -259,7 +259,7 @@ func (m *middleware) RequirePermission(codes []string) func(http.Handler) http.H
 	}
 }
 
-func (m *middleware) RateLimit(next http.Handler) http.Handler {
+func (m *Middleware) RateLimit(next http.Handler) http.Handler {
 	type client struct {
 		limiter  *rate.Limiter
 		lastSeen time.Time
@@ -322,7 +322,7 @@ func (m *middleware) RateLimit(next http.Handler) http.Handler {
 	})
 }
 
-func (m *middleware) RecoverPanic(next http.Handler) http.Handler {
+func (m *Middleware) RecoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -334,7 +334,7 @@ func (m *middleware) RecoverPanic(next http.Handler) http.Handler {
 	})
 }
 
-func (m *middleware) Logging(next http.Handler) http.Handler {
+func (m *Middleware) Logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -353,7 +353,7 @@ func (m *middleware) Logging(next http.Handler) http.Handler {
 	})
 }
 
-func (m *middleware) TimeoutMiddleWare(next http.Handler) http.Handler {
+func (m *Middleware) TimeoutMiddleWare(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), m.config.Server.Timeout)
 		defer cancel()
@@ -363,7 +363,7 @@ func (m *middleware) TimeoutMiddleWare(next http.Handler) http.Handler {
 	})
 }
 
-func (m *middleware) RequestID(next http.Handler) http.Handler {
+func (m *Middleware) RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("X-Request-Id")
 		if id == "" {

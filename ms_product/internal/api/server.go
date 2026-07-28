@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"ms_product/internal/core/domain/apiError"
-	"ms_product/internal/core/middleware"
+	"ms_product/internal/core/jsonlog"
 	"ms_product/internal/core/otel"
-	"ms_product/internal/core/transaction"
 	"net/http"
 	"os"
 	"os/signal"
@@ -40,43 +38,55 @@ func (app *application) Server() error {
 		}
 	}()
 
-	repo := NewRepositories(app.db, app.Logger)
-	tx := transaction.NewManager(app.db)
-	services, err := NewServices(repo, tx, app.config, app.Logger)
+	deps, err := app.buildDependencies(shutdown)
+	if err != nil {
+		return nil
+	}
+
+	mux := deps.routers.RegisterRoutes(app.db)
+	instrumentedHandler := otelhttp.NewHandler(mux, "ms_product")
+
+	srv := newHTTPServer(
+		fmt.Sprintf(":%d", app.config.Server.Port),
+		instrumentedHandler,
+		app.Logger,
+	)
+
+	shutdownError := make(chan error, 1)
+	app.handleShutdown(srv, shutdown, shutdownError)
+
+	app.Logger.PrintInfo("starting server", map[string]string{
+		"addr": srv.Addr,
+	})
+
+	err = srv.ListenAndServe()
+	if !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+
+	err = <-shutdownError
 	if err != nil {
 		return err
 	}
 
-	errHandler := apiError.NewErrorHandler(app.Logger)
-	handlers := NewHandlers(services, errHandler)
-	middleware := middleware.New(
-		errHandler,
-		app.config,
-		services.jwtService,
-		app.Logger,
-		shutdown,
-	)
+	app.Logger.PrintInfo("stopped server", map[string]string{
+		"addr": srv.Addr,
+	})
+	return nil
+}
 
-	var router router = NewRouter(
-		handlers,
-		errHandler,
-		middleware,
-	)
-
-	mux := router.RegisterRoutes(app.db)
-	instrumentedHandler := otelhttp.NewHandler(mux, "ms_product")
-
-	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", app.config.Server.Port),
-		Handler:      instrumentedHandler,
+func newHTTPServer(addr string, handler http.Handler, logger jsonlog.Logger) *http.Server {
+	return &http.Server{
+		Addr:         addr,
+		Handler:      handler,
 		IdleTimeout:  time.Minute,
-		ErrorLog:     log.New(app.Logger, "", 0),
+		ErrorLog:     log.New(logger, "", 0),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
+}
 
-	shutdownError := make(chan error)
-
+func (app *application) handleShutdown(srv *http.Server, shutdown chan struct{}, shutdownError chan<- error) {
 	go func() {
 		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -104,23 +114,4 @@ func (app *application) Server() error {
 		app.wg.Wait()
 		shutdownError <- nil
 	}()
-
-	app.Logger.PrintInfo("starting server", map[string]string{
-		"addr": srv.Addr,
-	})
-
-	err = srv.ListenAndServe()
-	if !errors.Is(err, http.ErrServerClosed) {
-		return err
-	}
-
-	err = <-shutdownError
-	if err != nil {
-		return err
-	}
-
-	app.Logger.PrintInfo("stopped server", map[string]string{
-		"addr": srv.Addr,
-	})
-	return nil
 }

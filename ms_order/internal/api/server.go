@@ -12,10 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"ms_order/internal/core/domain/apiError"
-	"ms_order/internal/core/middleware"
+	"ms_order/internal/core/jsonlog"
 	"ms_order/internal/core/otel"
-	"ms_order/internal/core/transaction"
 
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -41,47 +39,54 @@ func (app *application) Server() error {
 		}
 	}()
 
-	repo := NewRepositories(app.db, app.Logger)
-	tx := transaction.NewManager(app.db)
-	producers := NewProducers(app.kafkaProducer, app.Logger)
-	clients := NewClients(app.config)
-	services, err := NewServices(repo, clients, producers, tx, app.config, app.Logger)
+	deps, shutdownConsumers, err := app.buildDependencies(shutdown)
 	if err != nil {
 		return err
 	}
 
-	consumers := NewConsumers(app.kafkaConsumer, services, app.Logger)
-	shutdownConsumers := consumers.Start(app.Logger)
-	errHandler := apiError.NewErrorHandler(app.Logger)
-	handlers := NewHandlers(services, errHandler)
-	middleware := middleware.New(
-		errHandler,
-		app.config,
-		services.jwtService,
-		app.Logger,
-		shutdown,
-	)
+	mux := deps.routers.RegisterRoutes(app.db)
+	instrumentedHandler := otelhttp.NewHandler(mux, "ms_order")
 
-	var router router = NewRouter(
-		handlers,
-		errHandler,
-		middleware,
-	)
+	srv := newHTTPServer(fmt.Sprintf(":%d", app.config.Server.Port), instrumentedHandler, app.Logger)
 
-	mux := router.RegisterRoutes(app.db)
-	instrumentedHandler := otelhttp.NewHandler(mux, "ms_stock")
+	shutdownErr := make(chan error, 1)
+	app.handleShutdown(srv, shutdownConsumers, shutdown, shutdownErr)
 
-	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", app.config.Server.Port),
-		Handler:      instrumentedHandler,
+	app.Logger.PrintInfo("starting server", map[string]string{
+		"addr": srv.Addr,
+	})
+
+	err = srv.ListenAndServe()
+	if !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+
+	err = <-shutdownErr
+	if err != nil {
+		return err
+	}
+
+	app.kafkaProducer.Close()
+	app.kafkaConsumer.Close()
+
+	app.Logger.PrintInfo("stopped server", map[string]string{
+		"addr": srv.Addr,
+	})
+	return nil
+}
+
+func newHTTPServer(addr string, handler http.Handler, logger jsonlog.Logger) *http.Server {
+	return &http.Server{
+		Addr:         addr,
+		Handler:      handler,
 		IdleTimeout:  time.Minute,
-		ErrorLog:     log.New(app.Logger, "", 0),
+		ErrorLog:     log.New(logger, "", 0),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
+}
 
-	shutdownError := make(chan error)
-
+func (app *application) handleShutdown(srv *http.Server, shutdownConsumers func(), shutdown chan struct{}, shutdownError chan<- error) {
 	go func() {
 		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -111,26 +116,4 @@ func (app *application) Server() error {
 		app.wg.Wait()
 		shutdownError <- nil
 	}()
-
-	app.Logger.PrintInfo("starting server", map[string]string{
-		"addr": srv.Addr,
-	})
-
-	err = srv.ListenAndServe()
-	if !errors.Is(err, http.ErrServerClosed) {
-		return err
-	}
-
-	err = <-shutdownError
-	if err != nil {
-		return err
-	}
-
-	app.kafkaProducer.Close()
-	app.kafkaConsumer.Close()
-
-	app.Logger.PrintInfo("stopped server", map[string]string{
-		"addr": srv.Addr,
-	})
-	return nil
 }

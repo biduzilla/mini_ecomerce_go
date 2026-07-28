@@ -17,7 +17,7 @@ type services struct {
 func NewServices(
 	r *repositories,
 	clients *clients,
-	procecers *producers,
+	producers *producers,
 	tx transaction.Manager,
 	config config.Config,
 	logger jsonlog.Logger,
@@ -39,7 +39,7 @@ func NewServices(
 		tx, cacheClient,
 		cache.NewKeyBuilder("orders"),
 		clients.stockClient,
-		procecers.orderProducer,
+		producers.orderProducer,
 		logger,
 	)
 
